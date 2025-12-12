@@ -6,7 +6,6 @@
 
 #[cfg(feature = "azure")]
 pub mod azure;
-#[cfg(feature = "elastic")]
 pub mod elastic;
 #[cfg(feature = "foundation")]
 pub mod foundationdb;
