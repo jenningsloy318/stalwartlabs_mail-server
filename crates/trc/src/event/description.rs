@@ -1567,6 +1567,7 @@ impl StoreEvent {
             StoreEvent::CacheHit => "Cache hit",
             StoreEvent::CacheStale => "Cache is stale",
             StoreEvent::CacheUpdate => "Cache update",
+            StoreEvent::MeilisearchError => "Meilisearch error",
         }
     }
 
@@ -1608,6 +1609,7 @@ impl StoreEvent {
             StoreEvent::CacheHit => "Cache entry found for the account, no update needed",
             StoreEvent::CacheStale => "Cache is too old, rebuilding",
             StoreEvent::CacheUpdate => "Cache updated with latest database changes",
+            StoreEvent::MeilisearchError => "A Meilisearch error occurred",
         }
     }
 }

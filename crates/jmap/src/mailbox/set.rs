@@ -31,7 +31,9 @@ use jmap_proto::{
 use jmap_tools::{JsonPointerItem, Key, Map, Value};
 use std::future::Future;
 use store::{
-    ValueKey, roaring::RoaringBitmap, write::{AlignedBytes, Archive, BatchBuilder, assert::AssertValue}
+    ValueKey,
+    roaring::RoaringBitmap,
+    write::{AlignedBytes, Archive, BatchBuilder, assert::AssertValue},
 };
 use trc::AddContext;
 use types::{
@@ -526,12 +528,12 @@ impl MailboxSet for Server {
 
             // Role of internal folders cannot be modified
             if update.as_ref().is_some_and(|(document_id, _)| {
-                *document_id == INBOX_ID || *document_id == TRASH_ID
+                *document_id == INBOX_ID || *document_id == TRASH_ID || *document_id == JUNK_ID
             }) {
                 return Ok(Err(SetError::invalid_properties()
                     .with_property(MailboxProperty::Role)
                     .with_description(
-                        "You are not allowed to change the role of Inbox or Trash folders.",
+                        "You are not allowed to change the role of Inbox, Junk or Trash folders.",
                     )));
             }
         }

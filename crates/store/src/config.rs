@@ -6,7 +6,7 @@
 
 use crate::{
     BlobStore, CompressionAlgo, InMemoryStore, PurgeSchedule, PurgeStore, Store, Stores,
-    backend::{elastic::ElasticSearchStore, fs::FsStore},
+    backend::{elastic::ElasticSearchStore, fs::FsStore, meili::MeiliSearchStore},
 };
 use utils::config::{Config, cron::SimpleCron, utils::ParseValue};
 
@@ -205,6 +205,14 @@ impl Stores {
                 }
                 "elasticsearch" => {
                     if let Some(db) = ElasticSearchStore::open(config, prefix)
+                        .await
+                        .map(crate::SearchStore::from)
+                    {
+                        self.search_stores.insert(store_id, db);
+                    }
+                }
+                "meilisearch" => {
+                    if let Some(db) = MeiliSearchStore::open(config, prefix)
                         .await
                         .map(crate::SearchStore::from)
                     {

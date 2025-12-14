@@ -7,7 +7,7 @@
 use super::crypto::{EncryptMessage, EncryptMessageError};
 use crate::{
     cache::{MessageCacheFetch, email::MessageCacheAccess, mailbox::MailboxCacheAccess},
-    mailbox::{INBOX_ID, JUNK_ID, SENT_ID, UidMailbox},
+    mailbox::{INBOX_ID, JUNK_ID, SENT_ID, TRASH_ID, UidMailbox},
     message::{
         crypto::EncryptionParams,
         index::{IndexMessage, extractors::VisitText},
@@ -446,7 +446,9 @@ impl EmailIngest for Server {
                 if params.keywords.contains(&Keyword::Junk) {
                     train_spam = Some(true);
                 } else if params.keywords.contains(&Keyword::NotJunk) {
-                    train_spam = Some(false);
+                    if !params.mailbox_ids.contains(&TRASH_ID) {
+                        train_spam = Some(false);
+                    }
                 } else if params.mailbox_ids[0] == JUNK_ID {
                     train_spam = Some(true);
                 } else if params.mailbox_ids[0] == INBOX_ID {

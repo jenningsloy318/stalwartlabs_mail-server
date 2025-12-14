@@ -323,3 +323,71 @@ impl ParseValue for SearchField {
 }
 
 impl Eq for SearchFilter {}
+
+impl SearchIndex {
+    pub fn index_name(&self) -> &'static str {
+        match self {
+            SearchIndex::Email => "st_email",
+            SearchIndex::Calendar => "st_calendar",
+            SearchIndex::Contacts => "st_contact",
+            SearchIndex::File => "st_file",
+            SearchIndex::Tracing => "st_tracing",
+            SearchIndex::InMemory => unreachable!(),
+        }
+    }
+}
+
+impl SearchField {
+    pub fn field_name(&self) -> &'static str {
+        match self {
+            SearchField::AccountId => "acc_id",
+            SearchField::DocumentId => "doc_id",
+            SearchField::Id => "id",
+            SearchField::Email(field) => match field {
+                EmailSearchField::From => "from",
+                EmailSearchField::To => "to",
+                EmailSearchField::Cc => "cc",
+                EmailSearchField::Bcc => "bcc",
+                EmailSearchField::Subject => "subj",
+                EmailSearchField::Body => "body",
+                EmailSearchField::Attachment => "attach",
+                EmailSearchField::ReceivedAt => "rcvd",
+                EmailSearchField::SentAt => "sent",
+                EmailSearchField::Size => "size",
+                EmailSearchField::HasAttachment => "has_att",
+                EmailSearchField::Headers => "headers",
+            },
+            SearchField::Calendar(field) => match field {
+                CalendarSearchField::Title => "title",
+                CalendarSearchField::Description => "desc",
+                CalendarSearchField::Location => "loc",
+                CalendarSearchField::Owner => "owner",
+                CalendarSearchField::Attendee => "attendee",
+                CalendarSearchField::Start => "start",
+                CalendarSearchField::Uid => "uid",
+            },
+            SearchField::Contact(field) => match field {
+                ContactSearchField::Member => "member",
+                ContactSearchField::Kind => "kind",
+                ContactSearchField::Name => "name",
+                ContactSearchField::Nickname => "nick",
+                ContactSearchField::Organization => "org",
+                ContactSearchField::Email => "email",
+                ContactSearchField::Phone => "phone",
+                ContactSearchField::OnlineService => "online",
+                ContactSearchField::Address => "addr",
+                ContactSearchField::Note => "note",
+                ContactSearchField::Uid => "uid",
+            },
+            SearchField::File(field) => match field {
+                FileSearchField::Name => "name",
+                FileSearchField::Content => "content",
+            },
+            SearchField::Tracing(field) => match field {
+                TracingSearchField::EventType => "ev_type",
+                TracingSearchField::QueueId => "queue_id",
+                TracingSearchField::Keywords => "keywords",
+            },
+        }
+    }
+}

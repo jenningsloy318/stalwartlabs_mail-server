@@ -7,10 +7,9 @@
 use crate::{
     backend::elastic::ElasticSearchStore,
     search::{
-        CalendarSearchField, ContactSearchField, EmailSearchField, FileSearchField, SearchField,
-        SearchableField, TracingSearchField,
+        CalendarSearchField, ContactSearchField, EmailSearchField, SearchableField,
+        TracingSearchField,
     },
-    write::SearchIndex,
 };
 use reqwest::{Error, Response, Url};
 use serde_json::{Value, json};
@@ -80,7 +79,7 @@ impl ElasticSearchStore {
                 T::primary_keys()
                     .iter()
                     .chain(T::all_fields())
-                    .map(|field| (field.es_field().to_string(), field.es_schema()))
+                    .map(|field| (field.field_name().to_string(), field.es_schema()))
                     .collect::<serde_json::Map<String, Value>>(),
             ),
         );
@@ -107,7 +106,7 @@ impl ElasticSearchStore {
 
         assert_success(
             self.client
-                .put(format!("{}/{}", self.url, T::index().es_index_name()))
+                .put(format!("{}/{}", self.url, T::index().index_name()))
                 .body(body)
                 .send()
                 .await,
@@ -118,6 +117,8 @@ impl ElasticSearchStore {
 
     #[cfg(feature = "test_mode")]
     pub async fn drop_indexes(&self) -> trc::Result<()> {
+        use crate::write::SearchIndex;
+
         for index in &[
             SearchIndex::Email,
             SearchIndex::Calendar,
@@ -126,7 +127,7 @@ impl ElasticSearchStore {
         ] {
             assert_success(
                 self.client
-                    .delete(format!("{}/{}", self.url, index.es_index_name()))
+                    .delete(format!("{}/{}", self.url, index.index_name()))
                     .send()
                     .await,
             )
@@ -151,155 +152,5 @@ pub(crate) async fn assert_success(response: Result<Response, Error>) -> trc::Re
             }
         }
         Err(err) => Err(trc::StoreEvent::ElasticsearchError.reason(err)),
-    }
-}
-
-impl SearchIndex {
-    pub fn es_index_name(&self) -> &'static str {
-        match self {
-            SearchIndex::Email => "st_email",
-            SearchIndex::Calendar => "st_calendar",
-            SearchIndex::Contacts => "st_contact",
-            SearchIndex::File => "st_file",
-            SearchIndex::Tracing => "st_tracing",
-            SearchIndex::InMemory => unreachable!(),
-        }
-    }
-}
-
-impl SearchField {
-    pub fn es_field(&self) -> &'static str {
-        match self {
-            SearchField::AccountId => "acc_id",
-            SearchField::DocumentId => "doc_id",
-            SearchField::Id => "id",
-            SearchField::Email(field) => match field {
-                EmailSearchField::From => "from",
-                EmailSearchField::To => "to",
-                EmailSearchField::Cc => "cc",
-                EmailSearchField::Bcc => "bcc",
-                EmailSearchField::Subject => "subj",
-                EmailSearchField::Body => "body",
-                EmailSearchField::Attachment => "attach",
-                EmailSearchField::ReceivedAt => "rcvd",
-                EmailSearchField::SentAt => "sent",
-                EmailSearchField::Size => "size",
-                EmailSearchField::HasAttachment => "has_att",
-                EmailSearchField::Headers => "headers",
-            },
-            SearchField::Calendar(field) => match field {
-                CalendarSearchField::Title => "title",
-                CalendarSearchField::Description => "desc",
-                CalendarSearchField::Location => "loc",
-                CalendarSearchField::Owner => "owner",
-                CalendarSearchField::Attendee => "attendee",
-                CalendarSearchField::Start => "start",
-                CalendarSearchField::Uid => "uid",
-            },
-            SearchField::Contact(field) => match field {
-                ContactSearchField::Member => "member",
-                ContactSearchField::Kind => "kind",
-                ContactSearchField::Name => "name",
-                ContactSearchField::Nickname => "nick",
-                ContactSearchField::Organization => "org",
-                ContactSearchField::Email => "email",
-                ContactSearchField::Phone => "phone",
-                ContactSearchField::OnlineService => "online",
-                ContactSearchField::Address => "addr",
-                ContactSearchField::Note => "note",
-                ContactSearchField::Uid => "uid",
-            },
-            SearchField::File(field) => match field {
-                FileSearchField::Name => "name",
-                FileSearchField::Content => "content",
-            },
-            SearchField::Tracing(field) => match field {
-                TracingSearchField::EventType => "ev_type",
-                TracingSearchField::QueueId => "queue_id",
-                TracingSearchField::Keywords => "keywords",
-            },
-        }
-    }
-
-    pub fn es_schema(&self) -> Value {
-        match self {
-            SearchField::AccountId
-            | SearchField::DocumentId
-            | SearchField::Email(EmailSearchField::Size) => json!({
-              "type": "integer"
-            }),
-            SearchField::Id
-            | SearchField::Email(EmailSearchField::SentAt | EmailSearchField::ReceivedAt)
-            | SearchField::Calendar(CalendarSearchField::Start)
-            | SearchField::Tracing(TracingSearchField::QueueId | TracingSearchField::EventType) => {
-                json!({
-                  "type": "long"
-                })
-            }
-            SearchField::Email(EmailSearchField::HasAttachment) => json!({
-              "type": "boolean"
-            }),
-            SearchField::Calendar(CalendarSearchField::Uid)
-            | SearchField::Contact(ContactSearchField::Uid) => json!({
-              "type": "keyword",
-            }),
-            SearchField::Email(
-                EmailSearchField::From | EmailSearchField::To | EmailSearchField::Subject,
-            ) => json!({
-              "type": "text",
-              "fields": {
-                "keyword": {
-                  "type": "keyword"
-                }
-              }
-            }),
-            SearchField::Email(EmailSearchField::Headers) => {
-                json!({
-                  "type": "object",
-                  "enabled": true
-                })
-            }
-            #[cfg(feature = "test_mode")]
-            SearchField::Email(EmailSearchField::Bcc | EmailSearchField::Cc) => {
-                json!({
-                  "type": "text",
-                  "fields": {
-                    "keyword": {
-                      "type": "keyword"
-                    }
-                  }
-                })
-            }
-            #[cfg(not(feature = "test_mode"))]
-            SearchField::Email(EmailSearchField::Bcc | EmailSearchField::Cc) => {
-                json!({
-                  "type": "text"
-                })
-            }
-            SearchField::Email(EmailSearchField::Body | EmailSearchField::Attachment)
-            | SearchField::Calendar(
-                CalendarSearchField::Title
-                | CalendarSearchField::Description
-                | CalendarSearchField::Location
-                | CalendarSearchField::Owner
-                | CalendarSearchField::Attendee,
-            )
-            | SearchField::Contact(
-                ContactSearchField::Member
-                | ContactSearchField::Kind
-                | ContactSearchField::Name
-                | ContactSearchField::Nickname
-                | ContactSearchField::Organization
-                | ContactSearchField::Email
-                | ContactSearchField::Phone
-                | ContactSearchField::OnlineService
-                | ContactSearchField::Address
-                | ContactSearchField::Note,
-            )
-            | SearchField::File(FileSearchField::Name | FileSearchField::Content)
-            | SearchField::Tracing(TracingSearchField::Keywords) => json!({
-              "type": "text"
-            }),
-        }
     }
 }

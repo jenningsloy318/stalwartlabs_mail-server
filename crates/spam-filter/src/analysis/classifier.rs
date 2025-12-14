@@ -36,7 +36,6 @@ impl SpamFilterAnalyzeClassify for Server {
                 match store.key_exists(addr.address.as_str()).await {
                     Ok(true) => {
                         ctx.result.add_tag("SPAM_TRAP");
-                        ctx.result.spam_trap = true;
                         return true;
                     }
                     Ok(false) => (),

@@ -120,139 +120,139 @@ pub async fn test(store: SearchStore, do_insert: bool) {
     println!("Running global id filtering tests...");
     test_global(store.clone()).await;
 
-    if do_insert {
-        let filter_ids = std::env::var("QUICK_TEST").is_ok().then(|| {
-            let mut ids = AHashSet::new();
-            for &id in ALL_IDS {
-                ids.insert(id.to_string());
-                let id = id.as_bytes();
-                if id.last().unwrap() > &b'0' {
-                    let mut alt_id = id.to_vec();
-                    *alt_id.last_mut().unwrap() -= 1;
-                    ids.insert(String::from_utf8(alt_id).unwrap());
-                }
-                if id.last().unwrap() < &b'9' {
-                    let mut alt_id = id.to_vec();
-                    *alt_id.last_mut().unwrap() += 1;
-                    ids.insert(String::from_utf8(alt_id).unwrap());
+    let filter_ids = std::env::var("QUICK_TEST").is_ok().then(|| {
+        let mut ids = AHashSet::new();
+        for &id in ALL_IDS {
+            ids.insert(id.to_string());
+            let id = id.as_bytes();
+            if id.last().unwrap() > &b'0' {
+                let mut alt_id = id.to_vec();
+                *alt_id.last_mut().unwrap() -= 1;
+                ids.insert(String::from_utf8(alt_id).unwrap());
+            }
+            if id.last().unwrap() < &b'9' {
+                let mut alt_id = id.to_vec();
+                *alt_id.last_mut().unwrap() += 1;
+                ids.insert(String::from_utf8(alt_id).unwrap());
+            }
+        }
+
+        ids
+    });
+
+    pool.scope_fifo(|s| {
+        for (document_id, record) in csv::ReaderBuilder::new()
+            .has_headers(true)
+            .from_reader(&deflate_test_resource("artwork_data.csv.gz")[..])
+            .records()
+            .enumerate()
+        {
+            let record = record.unwrap();
+            let documents = documents.clone();
+
+            if let Some(filter_ids) = &filter_ids {
+                let id = record.get(1).unwrap().to_lowercase();
+                if !filter_ids.contains(&id) {
+                    continue;
                 }
             }
 
-            ids
-        });
+            s.spawn_fifo(move |_| {
+                let mut document = IndexDocument::new(SearchIndex::Email)
+                    .with_account_id(0)
+                    .with_document_id(document_id as u32);
+                for (pos, field) in record.iter().enumerate() {
+                    match FIELD_MAPPINGS[pos] {
+                        EmailSearchField::From
+                        | EmailSearchField::To
+                        | EmailSearchField::Cc
+                        | EmailSearchField::Bcc => {
+                            document.index_text(
+                                FIELD_MAPPINGS[pos].clone(),
+                                &field.to_lowercase(),
+                                Language::None,
+                            );
+                        }
+                        EmailSearchField::Subject
+                        | EmailSearchField::Body
+                        | EmailSearchField::Attachment => {
+                            document.index_text(
+                                FIELD_MAPPINGS[pos].clone(),
+                                &field
+                                    .replace(|ch: char| !ch.is_alphanumeric(), " ")
+                                    .to_lowercase(),
+                                Language::English,
+                            );
+                        }
+                        EmailSearchField::Headers => {
+                            document.insert_key_value(
+                                EmailSearchField::Headers,
+                                "artist",
+                                field.to_lowercase(),
+                            );
+                        }
+                        EmailSearchField::ReceivedAt
+                        | EmailSearchField::SentAt
+                        | EmailSearchField::Size => {
+                            document.index_unsigned(
+                                FIELD_MAPPINGS[pos].clone(),
+                                field.parse::<u64>().unwrap_or(0),
+                            );
+                        }
+                        _ => {
+                            continue;
+                        }
+                    };
+                }
 
-        pool.scope_fifo(|s| {
-            for (document_id, record) in csv::ReaderBuilder::new()
-                .has_headers(true)
-                .from_reader(&deflate_test_resource("artwork_data.csv.gz")[..])
-                .records()
-                .enumerate()
+                documents.lock().unwrap().push(document);
+            });
+        }
+    });
+
+    println!(
+        "Parsed {} entries in {} ms.",
+        documents.lock().unwrap().len(),
+        now.elapsed().as_millis()
+    );
+
+    let now = Instant::now();
+    let batches = documents.lock().unwrap().drain(..).collect::<Vec<_>>();
+
+    print!("Inserting... ",);
+    let mut chunks = Vec::new();
+    let mut chunk = Vec::new();
+    for document in batches {
+        let mut document_id = None;
+        let mut to_field = None;
+
+        for (key, value) in document.fields() {
+            if key == &SearchField::DocumentId {
+                if let SearchValue::Uint(id) = value {
+                    document_id = Some(*id as u32);
+                }
+            } else if key == &SearchField::Email(EmailSearchField::To)
+                && let SearchValue::Text { value, .. } = value
             {
-                let record = record.unwrap();
-                let documents = documents.clone();
-
-                if let Some(filter_ids) = &filter_ids {
-                    let id = record.get(1).unwrap().to_lowercase();
-                    if !filter_ids.contains(&id) {
-                        continue;
-                    }
-                }
-
-                s.spawn_fifo(move |_| {
-                    let mut document = IndexDocument::new(SearchIndex::Email)
-                        .with_account_id(0)
-                        .with_document_id(document_id as u32);
-                    for (pos, field) in record.iter().enumerate() {
-                        match FIELD_MAPPINGS[pos] {
-                            EmailSearchField::From
-                            | EmailSearchField::To
-                            | EmailSearchField::Cc
-                            | EmailSearchField::Bcc => {
-                                document.index_text(
-                                    FIELD_MAPPINGS[pos].clone(),
-                                    &field.to_lowercase(),
-                                    Language::None,
-                                );
-                            }
-                            EmailSearchField::Subject
-                            | EmailSearchField::Body
-                            | EmailSearchField::Attachment => {
-                                document.index_text(
-                                    FIELD_MAPPINGS[pos].clone(),
-                                    &field
-                                        .replace(|ch: char| !ch.is_alphanumeric(), " ")
-                                        .to_lowercase(),
-                                    Language::English,
-                                );
-                            }
-                            EmailSearchField::Headers => {
-                                document.insert_key_value(
-                                    EmailSearchField::Headers,
-                                    "artist",
-                                    field.to_lowercase(),
-                                );
-                            }
-                            EmailSearchField::ReceivedAt
-                            | EmailSearchField::SentAt
-                            | EmailSearchField::Size => {
-                                document.index_unsigned(
-                                    FIELD_MAPPINGS[pos].clone(),
-                                    field.parse::<u64>().unwrap_or(0),
-                                );
-                            }
-                            _ => {
-                                continue;
-                            }
-                        };
-                    }
-
-                    documents.lock().unwrap().push(document);
-                });
-            }
-        });
-
-        println!(
-            "Parsed {} entries in {} ms.",
-            documents.lock().unwrap().len(),
-            now.elapsed().as_millis()
-        );
-
-        let now = Instant::now();
-        let batches = documents.lock().unwrap().drain(..).collect::<Vec<_>>();
-
-        print!("Inserting... ",);
-        let mut chunks = Vec::new();
-        let mut chunk = Vec::new();
-        for document in batches {
-            let mut document_id = None;
-            let mut to_field = None;
-
-            for (key, value) in document.fields() {
-                if key == &SearchField::DocumentId {
-                    if let SearchValue::Uint(id) = value {
-                        document_id = Some(*id as u32);
-                    }
-                } else if key == &SearchField::Email(EmailSearchField::To)
-                    && let SearchValue::Text { value, .. } = value
-                {
-                    to_field = Some(value.to_string());
-                }
-            }
-            let document_id = document_id.unwrap();
-            let to_field = to_field.unwrap();
-            mask.insert(document_id);
-            fields.insert(document_id, to_field);
-
-            chunk.push(document);
-            if chunk.len() == 10 {
-                chunks.push(chunk);
-                chunk = Vec::new();
+                to_field = Some(value.to_string());
             }
         }
-        if !chunk.is_empty() {
+        let document_id = document_id.unwrap();
+        let to_field = to_field.unwrap();
+        mask.insert(document_id);
+        fields.insert(document_id, to_field);
+
+        chunk.push(document);
+        if chunk.len() == 10 {
             chunks.push(chunk);
+            chunk = Vec::new();
         }
+    }
+    if !chunk.is_empty() {
+        chunks.push(chunk);
+    }
 
+    if do_insert {
         let mut tasks = Vec::new();
         for chunk in chunks {
             let chunk_instance = Instant::now();

@@ -425,7 +425,7 @@ impl<T: SessionStream> Session<T> {
         }
 
         // Run SPAM filter
-        let mut train_as_spam = false;
+        let mut train_spam = None;
         if self.server.core.spam.enabled
             && self
                 .server
@@ -446,7 +446,7 @@ impl<T: SessionStream> Session<T> {
                 SpamFilterAction::Allow(score) => {
                     // Add headers
                     headers.extend_from_slice(score.headers.as_bytes());
-                    train_as_spam = score.spam_trap;
+                    train_spam = score.train_spam;
 
                     // Add scores for local recipients
                     for (is_spam, recipient) in
@@ -685,7 +685,7 @@ impl<T: SessionStream> Session<T> {
                 {
                     MessageSource::Unauthenticated {
                         dmarc_pass: dmarc_pass || message.message.return_path.starts_with("dmarc-"),
-                        train_as_spam,
+                        train_spam,
                     }
                 }
 
@@ -693,7 +693,7 @@ impl<T: SessionStream> Session<T> {
                 {
                     MessageSource::Unauthenticated {
                         dmarc_pass,
-                        train_as_spam,
+                        train_spam,
                     }
                 }
             } else {

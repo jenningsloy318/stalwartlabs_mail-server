@@ -44,7 +44,7 @@ pub trait SpamFilterAnalyzeScore: Sync + Send {
 pub struct SpamFilterScore {
     pub results: Vec<bool>,
     pub headers: String,
-    pub spam_trap: bool,
+    pub train_spam: Option<bool>,
     pub score: f32,
 }
 
@@ -163,10 +163,24 @@ impl SpamFilterAnalyzeScore for Server {
                 );
             }
 
+            // Autolearn
+            let mut train_spam = None;
+            let config = self.core.spam.classifier.as_ref().unwrap();
+            if config.auto_learn_spam_score > 0.0 && final_score >= config.auto_learn_spam_score {
+                if !ctx.result.has_tag("PROB_SPAM_HIGH") {
+                    train_spam = Some(true);
+                }
+            } else if config.auto_learn_ham_score < 0.0
+                && final_score <= config.auto_learn_ham_score
+                && !ctx.result.has_tag("PROB_HAM_HIGH")
+            {
+                train_spam = Some(false);
+            }
+
             SpamFilterAction::Allow(SpamFilterScore {
                 results: user_results,
                 headers,
-                spam_trap: ctx.result.spam_trap,
+                train_spam,
                 score: final_score,
             })
         }

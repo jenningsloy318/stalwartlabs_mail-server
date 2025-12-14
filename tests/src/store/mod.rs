@@ -132,6 +132,14 @@ pub fn build_store_config(temp_dir: &str) -> String {
                 "false"
             },
         )
+        .replace(
+            "{MEILI_ENABLED}",
+            if fts_store != "meili" {
+                "true"
+            } else {
+                "false"
+            },
+        )
 }
 
 const CONFIG: &str = r#"
@@ -170,6 +178,17 @@ disable = {ELASTIC_ENABLED}
 [store."elastic".auth]
 username = "elastic"
 secret = "changeme"
+
+[store."meili"]
+type = "meilisearch"
+url = "http://localhost:7700"
+tls.allow-invalid-certs = true
+disable = {MEILI_ENABLED}
+[store."meili".task]
+poll-interval = "100ms"
+#[store."meili".auth]
+#username = "meili"
+#secret = "changeme"
 
 #[store."s3"]
 #type = "s3"

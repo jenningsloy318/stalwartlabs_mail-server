@@ -5,43 +5,17 @@
  */
 
 use crate::{
-    backend::elastic::{ElasticSearchStore, main::assert_success},
+    backend::elastic::{
+        DeleteByQueryResponse, ElasticSearchStore, SearchResponse, main::assert_success,
+    },
     search::{
         IndexDocument, SearchComparator, SearchDocumentId, SearchField, SearchFilter,
         SearchOperator, SearchQuery, SearchValue,
     },
     write::SearchIndex,
 };
-use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value, json};
 use std::fmt::Write;
-
-#[derive(Debug, Deserialize)]
-pub struct SearchResponse {
-    pub hits: Hits,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Hits {
-    pub total: Total,
-    pub hits: Vec<Hit>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Total {
-    pub value: u64,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Hit {
-    #[serde(rename = "_id", deserialize_with = "deserialize_string_to_u64")]
-    pub id: u64,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct DeleteByQueryResponse {
-    pub deleted: u64,
-}
 
 impl ElasticSearchStore {
     pub async fn index(&self, documents: Vec<IndexDocument>) -> trc::Result<()> {
@@ -63,7 +37,7 @@ impl ElasticSearchStore {
             let _ = writeln!(
                 &mut request,
                 "{{\"index\":{{\"_index\":\"{}\",\"_id\":{id}}}}}",
-                document.index.es_index_name()
+                document.index.index_name()
             );
             json_serialize(&mut request, &document);
             request.push('\n');
@@ -99,7 +73,7 @@ impl ElasticSearchStore {
 
         let response = assert_success(
             self.client
-                .post(format!("{}/{}/_search", self.url, index.es_index_name()))
+                .post(format!("{}/{}/_search", self.url, index.index_name()))
                 .body(serde_json::to_string(&query).unwrap_or_default())
                 .send()
                 .await,
@@ -142,7 +116,7 @@ impl ElasticSearchStore {
                 .post(format!(
                     "{}/{}/_delete_by_query",
                     self.url,
-                    filter.index.es_index_name()
+                    filter.index.index_name()
                 ))
                 .body(serde_json::to_string(&query).unwrap_or_default())
                 .send()
@@ -161,7 +135,7 @@ impl ElasticSearchStore {
     }
 
     pub async fn refresh_index(&self, index: SearchIndex) -> trc::Result<()> {
-        let url = format!("{}/{}/_refresh", self.url, index.es_index_name());
+        let url = format!("{}/{}/_refresh", self.url, index.index_name());
 
         assert_success(self.client.post(url).send().await)
             .await
@@ -190,14 +164,14 @@ fn build_query(filters: &[SearchFilter]) -> Value {
 
                     if op != &SearchOperator::Equal {
                         conditions.push(json!({
-                            "match": { field.es_field(): {
+                            "match": { field.field_name(): {
                                 "query": value,
                                 "operator": "and"
                             } }
                         }));
                     } else {
                         conditions.push(json!({
-                            "match_phrase": { field.es_field(): value }
+                            "match_phrase": { field.field_name(): value }
                         }));
                     }
                 } else {
@@ -213,19 +187,19 @@ fn build_query(filters: &[SearchFilter]) -> Value {
                                 if op == &SearchOperator::Equal {
                                     json!({
                                         "term": {
-                                            format!("{}.{}.keyword", field.es_field(), key): value
+                                            format!("{}.{}.keyword", field.field_name(), key): value
                                         }
                                     })
                                 } else {
                                     json!({
                                         "match": {
-                                            format!("{}.{}", field.es_field(), key): value
+                                            format!("{}.{}", field.field_name(), key): value
                                         }
                                     })
                                 }
                             } else {
                                 json!({
-                                    "exists": { "field": format!("{}.{}", field.es_field(), key) }
+                                    "exists": { "field": format!("{}.{}", field.field_name(), key) }
                                 })
                             };
 
@@ -236,7 +210,7 @@ fn build_query(filters: &[SearchFilter]) -> Value {
 
                     let cond = match op {
                         SearchOperator::Equal | SearchOperator::Contains => json!({
-                            "term": { field.es_field(): value }
+                            "term": { field.field_name(): value }
                         }),
                         op => {
                             let op = match op {
@@ -248,7 +222,7 @@ fn build_query(filters: &[SearchFilter]) -> Value {
                             };
 
                             json!({
-                                "range": { field.es_field(): { op: value } }
+                                "range": { field.field_name(): { op: value } }
                             })
                         }
                     };
@@ -310,9 +284,9 @@ fn build_sort(sort: &[SearchComparator]) -> Value {
             .filter_map(|comp| match comp {
                 SearchComparator::Field { field, ascending } => {
                     let field = if field.is_text() {
-                        format!("{}.keyword", field.es_field())
+                        format!("{}.keyword", field.field_name())
                     } else {
-                        field.es_field().to_string()
+                        field.field_name().to_string()
                     };
 
                     Some(json!({
@@ -332,7 +306,7 @@ fn json_serialize(request: &mut String, document: &IndexDocument) {
             request.push(',');
         }
 
-        let _ = write!(request, "{:?}:", k.es_field());
+        let _ = write!(request, "{:?}:", k.field_name());
         match v {
             SearchValue::Text { value, .. } => {
                 json_serialize_str(request, value);
@@ -384,13 +358,4 @@ fn json_serialize_str(request: &mut String, value: &str) {
         }
     }
     request.push('"');
-}
-
-fn deserialize_string_to_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    <&str>::deserialize(deserializer)?
-        .parse::<u64>()
-        .map_err(serde::de::Error::custom)
 }

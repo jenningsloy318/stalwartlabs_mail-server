@@ -32,8 +32,6 @@ use std::{
     hash::{Hash, RandomState},
     sync::Arc,
 };
-use store::rand::SeedableRng;
-use store::rand::rngs::StdRng;
 use store::rand::seq::SliceRandom;
 use store::write::{BlobLink, now};
 use store::{
@@ -303,13 +301,18 @@ impl SpamClassifier for Server {
         }
 
         let num_samples = samples.len();
-        samples.shuffle(&mut StdRng::seed_from_u64(42));
+        samples.shuffle(&mut store::rand::rng());
 
         // Spawn training task
-        let epochs = match trainer.reservoir.ham.total_seen + trainer.reservoir.spam.total_seen {
-            0..=2500 => 3,       // Bootstrap
-            2_501..=10_000 => 2, // Refinement
-            _ => 1,              // Full online training
+        let epochs = match trainer
+            .reservoir
+            .ham
+            .total_seen
+            .min(trainer.reservoir.spam.total_seen)
+        {
+            0..=50 => 3,   // Bootstrap
+            51..=200 => 2, // Refinement
+            _ => 1,        // Full online training
         };
         let task = trainer.trainer.spawn(epochs)?;
         let is_fh = matches!(task, TrainTask::Fh { .. });

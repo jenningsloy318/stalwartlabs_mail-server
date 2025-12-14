@@ -25,6 +25,8 @@ use std::{borrow::Cow, sync::Arc};
 use utils::config::cron::SimpleCron;
 use write::ValueClass;
 
+use crate::backend::{elastic::ElasticSearchStore, meili::MeiliSearchStore};
+
 pub trait Deserialize: Sized + Sync + Send {
     fn deserialize(bytes: &[u8]) -> trc::Result<Self>;
     fn deserialize_owned(bytes: Vec<u8>) -> trc::Result<Self> {
@@ -184,7 +186,8 @@ pub enum BlobBackend {
 #[derive(Clone)]
 pub enum SearchStore {
     Store(Store),
-    ElasticSearch(Arc<backend::elastic::ElasticSearchStore>),
+    ElasticSearch(Arc<ElasticSearchStore>),
+    MeiliSearch(Arc<MeiliSearchStore>),
 }
 
 #[derive(Clone, Debug)]
@@ -280,9 +283,15 @@ impl From<backend::azure::AzureStore> for BlobStore {
     }
 }
 
-impl From<backend::elastic::ElasticSearchStore> for SearchStore {
-    fn from(store: backend::elastic::ElasticSearchStore) -> Self {
+impl From<ElasticSearchStore> for SearchStore {
+    fn from(store: ElasticSearchStore) -> Self {
         Self::ElasticSearch(Arc::new(store))
+    }
+}
+
+impl From<MeiliSearchStore> for SearchStore {
+    fn from(store: MeiliSearchStore) -> Self {
+        Self::MeiliSearch(Arc::new(store))
     }
 }
 

@@ -897,6 +897,7 @@ impl EventType {
             EventType::TaskQueue(TaskQueueEvent::TaskFailed) => 587,
             EventType::Spam(SpamEvent::TrainStarted) => 588,
             EventType::Spam(SpamEvent::ModelLoaded) => 589,
+            EventType::Store(StoreEvent::MeilisearchError) => 590,
         }
     }
 
@@ -1532,6 +1533,7 @@ impl EventType {
             587 => Some(EventType::TaskQueue(TaskQueueEvent::TaskFailed)),
             588 => Some(EventType::Spam(SpamEvent::TrainStarted)),
             589 => Some(EventType::Spam(SpamEvent::ModelLoaded)),
+            590 => Some(EventType::Store(StoreEvent::MeilisearchError)),
             _ => None,
         }
     }

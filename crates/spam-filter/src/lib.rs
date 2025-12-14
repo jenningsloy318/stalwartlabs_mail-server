@@ -106,7 +106,6 @@ pub struct SpamFilterResult {
     pub rbl_url_checks: usize,
     pub rbl_email_checks: usize,
     pub llm_result: Option<(String, String)>,
-    pub spam_trap: bool,
 }
 
 pub struct SpamFilterContext<'x> {

@@ -45,7 +45,7 @@ pub enum MessageSource {
     Authenticated,
     Unauthenticated {
         dmarc_pass: bool,
-        train_as_spam: bool,
+        train_spam: Option<bool>,
     },
     Dsn,
     Report,

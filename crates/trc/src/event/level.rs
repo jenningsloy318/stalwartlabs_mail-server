@@ -34,6 +34,7 @@ impl EventType {
                 | StoreEvent::SqliteError
                 | StoreEvent::LdapError
                 | StoreEvent::ElasticsearchError
+                | StoreEvent::MeilisearchError
                 | StoreEvent::RedisError
                 | StoreEvent::S3Error
                 | StoreEvent::AzureError

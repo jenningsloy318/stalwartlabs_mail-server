@@ -207,6 +207,7 @@ impl SearchStore {
                 _ => unreachable!(),
             },
             SearchStore::ElasticSearch(store) => store.query(index, filters, sort).await,
+            SearchStore::MeiliSearch(store) => store.query(index, filters, sort).await,
         }
     }
 
@@ -242,6 +243,11 @@ impl SearchStore {
                     .query(query.index, &query.filters, &query.comparators)
                     .await
             }
+            SearchStore::MeiliSearch(store) => {
+                store
+                    .query(query.index, &query.filters, &query.comparators)
+                    .await
+            }
         }
     }
 
@@ -261,6 +267,7 @@ impl SearchStore {
                 store => store.index(documents).await,
             },
             SearchStore::ElasticSearch(store) => store.index(documents).await,
+            SearchStore::MeiliSearch(store) => store.index(documents).await,
         }
     }
 
@@ -280,6 +287,7 @@ impl SearchStore {
                 store => store.unindex(query).await.map(|_| 0),
             },
             SearchStore::ElasticSearch(store) => store.unindex(query).await,
+            SearchStore::MeiliSearch(store) => store.unindex(query).await,
         }
     }
 
@@ -320,6 +328,10 @@ impl SearchStore {
 
     pub fn is_elasticsearch(&self) -> bool {
         matches!(self, SearchStore::ElasticSearch(_))
+    }
+
+    pub fn is_meilisearch(&self) -> bool {
+        matches!(self, SearchStore::MeiliSearch(_))
     }
 }
 

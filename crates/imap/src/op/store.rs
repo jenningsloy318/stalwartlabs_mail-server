@@ -12,7 +12,10 @@ use crate::{
 use ahash::AHashSet;
 use common::{listener::SessionStream, storage::index::ObjectIndexBuilder};
 use directory::Permission;
-use email::message::{ingest::EmailIngest, metadata::MessageData};
+use email::{
+    mailbox::TRASH_ID,
+    message::{ingest::EmailIngest, metadata::MessageData},
+};
 use imap_proto::{
     Command, ResponseCode, ResponseType, StatusResponse,
     protocol::{
@@ -250,7 +253,8 @@ impl<T: SessionStream> SessionData<T> {
                 if keyword == &Keyword::Junk {
                     train_spam = Some(true);
                     break;
-                } else if keyword == &Keyword::NotJunk {
+                } else if keyword == &Keyword::NotJunk && !data.inner.has_mailbox_id(TRASH_ID) {
+                    // Only train as ham if not in Trash (Apple likes to add NotJunk to trashed items, which would be spammy)
                     train_spam = Some(false);
                     break;
                 }
@@ -258,7 +262,9 @@ impl<T: SessionStream> SessionData<T> {
             if train_spam.is_none() {
                 for keyword in new_data.removed_keywords(data.inner) {
                     if keyword == &Keyword::Junk {
-                        train_spam = Some(false);
+                        if !data.inner.has_mailbox_id(TRASH_ID) {
+                            train_spam = Some(false);
+                        }
                         break;
                     }
                 }

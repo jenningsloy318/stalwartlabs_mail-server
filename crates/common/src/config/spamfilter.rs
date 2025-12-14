@@ -87,6 +87,8 @@ pub struct ClassifierConfig {
     pub min_spam_samples: u64,
     pub auto_learn_reply_ham: bool,
     pub auto_learn_card_is_ham: bool,
+    pub auto_learn_spam_score: f32,
+    pub auto_learn_ham_score: f32,
     pub hold_samples_for: u64,
     pub train_frequency: Option<u64>,
 }
@@ -449,21 +451,24 @@ impl PyzorConfig {
 
 impl ClassifierConfig {
     pub fn parse(config: &mut Config) -> Option<Self> {
-        if !config
-            .property_or_default("spam-filter.classifier.enable", "true")
-            .unwrap_or(true)
-        {
-            return None;
-        }
+        let ccfh = match config.value("spam-filter.classifier.model") {
+            Some("ftrl-fh") | None => false,
+            Some("ftrl-ccfh") => true,
+            Some("disabled") => return None,
+            Some(other) => {
+                config.new_build_error(
+                    "spam-filter.classifier.model",
+                    format!("Invalid model type: {}", other),
+                );
+                return None;
+            }
+        };
 
         let w_params = FtrlParameters::parse(config, "spam-filter.classifier.parameters", 20);
-        let i_params = if config
-            .property_or_default("spam-filter.classifier.ccfh.enable", "false")
-            .unwrap_or(false)
-        {
+        let i_params = if ccfh {
             Some(FtrlParameters::parse(
                 config,
-                "spam-filter.classifier.ccfh.parameters",
+                "spam-filter.classifier.parameters.ccfh",
                 w_params.feature_hash_size - 2,
             ))
         } else {
@@ -482,6 +487,12 @@ impl ClassifierConfig {
             auto_learn_reply_ham: config
                 .property_or_default("spam-filter.trusted-reply.learn", "true")
                 .unwrap_or(true),
+            auto_learn_spam_score: config
+                .property_or_default("spam-filter.classifier.auto-learn.spam-score", "8.0")
+                .unwrap_or(8.0),
+            auto_learn_ham_score: config
+                .property_or_default("spam-filter.classifier.auto-learn.ham-score", "-8.0")
+                .unwrap_or(-8.0),
             hold_samples_for: config
                 .property_or_default::<Duration>("spam-filter.classifier.samples.hold-for", "180d")
                 .unwrap_or(Duration::from_secs(180 * 24 * 60 * 60))

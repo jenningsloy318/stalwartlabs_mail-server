@@ -69,6 +69,12 @@ pub async fn search_store_destroy(store: &SearchStore) {
             }
             store.create_indexes(3, 0, false).await.unwrap();
         }
+        SearchStore::MeiliSearch(store) => {
+            if let Err(err) = store.drop_indexes().await {
+                eprintln!("Failed to drop meilisearch indexes: {}", err);
+            }
+            store.create_indexes().await.unwrap();
+        }
     }
 }
 

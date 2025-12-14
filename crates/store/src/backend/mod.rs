@@ -13,6 +13,7 @@ pub mod fs;
 pub mod http;
 #[cfg(feature = "kafka")]
 pub mod kafka;
+pub mod meili;
 pub mod memory;
 #[cfg(feature = "mysql")]
 pub mod mysql;

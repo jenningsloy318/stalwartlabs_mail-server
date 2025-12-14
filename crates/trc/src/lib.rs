@@ -830,6 +830,7 @@ pub enum StoreEvent {
     SqliteError,
     LdapError,
     ElasticsearchError,
+    MeilisearchError,
     RedisError,
     S3Error,
     AzureError,
