@@ -4,7 +4,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use common::{Server, auth::AccessToken, config::spamfilter::SpamFilterAction, psl};
+use common::{
+    Server,
+    auth::AccessToken,
+    config::spamfilter::SpamFilterAction,
+    manager::{SPAM_CLASSIFIER_KEY, SPAM_TRAINER_KEY},
+    psl,
+};
 use directory::{
     Permission,
     backend::internal::manage::{self, ManageDirectory},
@@ -87,7 +93,7 @@ impl ManageSpamHandler for Server {
         access_token: &AccessToken,
     ) -> trc::Result<HttpResponse> {
         match (path.get(1).copied(), path.get(2).copied(), req.method()) {
-            (Some("sample"), Some(class @ ("ham" | "spam")), &Method::POST) => {
+            (Some("upload"), Some(class @ ("ham" | "spam")), &Method::POST) => {
                 // Validate the access token
                 access_token.assert_has_permission(Permission::SpamFilterTrain)?;
 
@@ -165,6 +171,12 @@ impl ManageSpamHandler for Server {
                         } else {
                             false
                         }
+                    }
+                    Some("delete") => {
+                        for key in [SPAM_CLASSIFIER_KEY, SPAM_TRAINER_KEY] {
+                            self.blob_store().delete_blob(key).await?;
+                        }
+                        true
                     }
                     Some("status") => self.inner.ipc.train_task_controller.is_running(),
                     _ => {

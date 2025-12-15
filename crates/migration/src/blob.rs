@@ -216,6 +216,10 @@ pub(crate) async fn migrate_blobs_v014(server: &Server) -> trc::Result<()> {
                     );
             }
             OldType::Undelete { deleted_at, size } => {
+                // SPDX-SnippetBegin
+                // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+                // SPDX-License-Identifier: LicenseRef-SEL
+
                 #[cfg(feature = "enterprise")]
                 {
                     batch
@@ -244,6 +248,8 @@ pub(crate) async fn migrate_blobs_v014(server: &Server) -> trc::Result<()> {
                             .caused_by(trc::location!())?,
                         );
                 }
+
+                // SPDX-SnippetEnd
             }
             OldType::Temp => {
                 batch.set(

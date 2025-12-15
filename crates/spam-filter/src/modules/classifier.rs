@@ -367,16 +367,20 @@ impl SpamClassifier for Server {
 
                 match &task {
                     TrainTask::Fh { builder, .. } => {
-                        builder.scale(&mut tokens);
+                        if config.log_scale {
+                            builder.scale(&mut tokens);
+                        }
                         fh_samples.push(Sample::new(
-                            builder.build(&tokens, account_id),
+                            builder.build(&tokens, account_id, config.l2_normalize),
                             sample.is_spam,
                         ));
                     }
                     TrainTask::Ccfh { builder, .. } => {
-                        builder.scale(&mut tokens);
+                        if config.log_scale {
+                            builder.scale(&mut tokens);
+                        }
                         ccfh_samples.push(Sample::new(
-                            builder.build(&tokens, account_id),
+                            builder.build(&tokens, account_id, config.l2_normalize),
                             sample.is_spam,
                         ));
                     }
@@ -558,6 +562,9 @@ impl SpamClassifier for Server {
 
     async fn spam_classify(&self, ctx: &mut SpamFilterContext<'_>) -> trc::Result<()> {
         let classifier = self.inner.data.spam_classifier.load_full();
+        let Some(config) = &self.core.spam.classifier else {
+            return Ok(());
+        };
 
         let started = Instant::now();
         match classifier.as_ref() {
@@ -566,7 +573,9 @@ impl SpamClassifier for Server {
                 let mut has_prediction = false;
                 let mut tokens = self.spam_build_tokens(ctx).await.0;
                 let feature_builder = classifier.feature_builder();
-                feature_builder.scale(&mut tokens);
+                if config.log_scale {
+                    feature_builder.scale(&mut tokens);
+                }
 
                 for rcpt in &ctx.input.env_rcpt_to {
                     let prediction = if let Some(account_id) = self
@@ -577,9 +586,11 @@ impl SpamClassifier for Server {
                     {
                         has_prediction = true;
                         classifier
-                            .predict_proba_sample(
-                                &feature_builder.build(&tokens, account_id.into()),
-                            )
+                            .predict_proba_sample(&feature_builder.build(
+                                &tokens,
+                                account_id.into(),
+                                config.l2_normalize,
+                            ))
                             .into()
                     } else {
                         None
@@ -591,8 +602,11 @@ impl SpamClassifier for Server {
                     ctx.result.classifier_confidence = classifier_confidence;
                 } else {
                     // None of the recipients are local, default to global model prediction
-                    let prediction =
-                        classifier.predict_proba_sample(&feature_builder.build(&tokens, None));
+                    let prediction = classifier.predict_proba_sample(&feature_builder.build(
+                        &tokens,
+                        None,
+                        config.l2_normalize,
+                    ));
                     ctx.result.classifier_confidence =
                         vec![prediction.into(); ctx.input.env_rcpt_to.len()];
                 }
@@ -602,7 +616,9 @@ impl SpamClassifier for Server {
                 let mut has_prediction = false;
                 let mut tokens = self.spam_build_tokens(ctx).await.0;
                 let feature_builder = classifier.feature_builder();
-                feature_builder.scale(&mut tokens);
+                if config.log_scale {
+                    feature_builder.scale(&mut tokens);
+                }
 
                 for rcpt in &ctx.input.env_rcpt_to {
                     let prediction = if let Some(account_id) = self
@@ -613,9 +629,11 @@ impl SpamClassifier for Server {
                     {
                         has_prediction = true;
                         classifier
-                            .predict_proba_sample(
-                                &feature_builder.build(&tokens, account_id.into()),
-                            )
+                            .predict_proba_sample(&feature_builder.build(
+                                &tokens,
+                                account_id.into(),
+                                config.l2_normalize,
+                            ))
                             .into()
                     } else {
                         None
@@ -627,8 +645,11 @@ impl SpamClassifier for Server {
                     ctx.result.classifier_confidence = classifier_confidence;
                 } else {
                     // None of the recipients are local, default to global model prediction
-                    let prediction =
-                        classifier.predict_proba_sample(&feature_builder.build(&tokens, None));
+                    let prediction = classifier.predict_proba_sample(&feature_builder.build(
+                        &tokens,
+                        None,
+                        config.l2_normalize,
+                    ));
                     ctx.result.classifier_confidence =
                         vec![prediction.into(); ctx.input.env_rcpt_to.len()];
                 }

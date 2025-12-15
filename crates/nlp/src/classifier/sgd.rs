@@ -410,7 +410,7 @@ pub mod tests {
             }
             builder.scale(&mut sample);
             samples.push(Sample {
-                features: builder.build(&sample, 12345.into()),
+                features: builder.build(&sample, 12345.into(), true),
                 class: if *class { 1.0 } else { 0.0 },
             });
         }
@@ -431,7 +431,7 @@ pub mod tests {
             }
             builder.scale(&mut sample);
             samples.push(Sample {
-                features: builder.build(&sample, 12345.into()),
+                features: builder.build(&sample, 12345.into(), true),
                 class: if *class { 1.0 } else { 0.0 },
             });
         }

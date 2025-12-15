@@ -219,7 +219,7 @@ impl JmapConfig {
         let mut jmap = JmapConfig {
             default_language: Language::from_iso_639(
                 config
-                    .value("storage.full-text.default-language")
+                    .value("storage.search-index.default-language")
                     .unwrap_or("en"),
             )
             .unwrap_or(Language::English),
@@ -356,7 +356,9 @@ impl JmapConfig {
             calendar_parse_max_items: config
                 .property("jmap.calendar.parse.max-items")
                 .unwrap_or(10),
-            index_batch_size: config.property("jmap.index.batch-size").unwrap_or(100),
+            index_batch_size: config
+                .property("storage.search-index.batch-size")
+                .unwrap_or(100),
             index_fields: AHashMap::new(),
             default_folders,
             shared_folder,
@@ -379,14 +381,17 @@ impl JmapConfig {
             };
 
             if !config
-                .property_or_default::<bool>(&format!("jmap.index.{index_name}.enabled"), "true")
+                .property_or_default::<bool>(
+                    &format!("storage.search-index.{index_name}.enabled"),
+                    "true",
+                )
                 .unwrap_or(true)
             {
                 continue;
             }
 
-            for (_, field) in
-                config.properties::<SearchField>(&format!("jmap.index.{index_name}.fields"))
+            for (_, field) in config
+                .properties::<SearchField>(&format!("storage.search-index.{index_name}.fields"))
             {
                 fields.insert(field);
             }

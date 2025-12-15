@@ -91,6 +91,8 @@ pub struct ClassifierConfig {
     pub auto_learn_ham_score: f32,
     pub hold_samples_for: u64,
     pub train_frequency: Option<u64>,
+    pub log_scale: bool,
+    pub l2_normalize: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -454,7 +456,7 @@ impl ClassifierConfig {
         let ccfh = match config.value("spam-filter.classifier.model") {
             Some("ftrl-fh") | None => false,
             Some("ftrl-ccfh") => true,
-            Some("disabled") => return None,
+            Some("disabled" | "disable") => return None,
             Some(other) => {
                 config.new_build_error(
                     "spam-filter.classifier.model",
@@ -498,11 +500,11 @@ impl ClassifierConfig {
                 .unwrap_or(Duration::from_secs(180 * 24 * 60 * 60))
                 .as_secs(),
             min_ham_samples: config
-                .property_or_default("spam-filter.classifier.samples.min-ham", "10")
-                .unwrap_or(10),
+                .property_or_default("spam-filter.classifier.samples.min-ham", "100")
+                .unwrap_or(100),
             min_spam_samples: config
-                .property_or_default("spam-filter.classifier.samples.min-spam", "10")
-                .unwrap_or(10),
+                .property_or_default("spam-filter.classifier.samples.min-spam", "100")
+                .unwrap_or(100),
             train_frequency: config
                 .property_or_default::<Option<Duration>>(
                     "spam-filter.classifier.training.frequency",
@@ -510,6 +512,12 @@ impl ClassifierConfig {
                 )
                 .unwrap_or(Some(Duration::from_secs(12 * 60 * 60)))
                 .map(|d| d.as_secs()),
+            log_scale: config
+                .property_or_default("spam-filter.classifier.features.log-scale", "true")
+                .unwrap_or(true),
+            l2_normalize: config
+                .property_or_default("spam-filter.classifier.features.l2-normalize", "true")
+                .unwrap_or(true),
         }
         .into()
     }

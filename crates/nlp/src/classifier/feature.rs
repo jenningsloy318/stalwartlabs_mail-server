@@ -124,6 +124,7 @@ pub trait FeatureBuilder {
         &self,
         features_in: &HashMap<I, f32>,
         account_id: Option<u32>,
+        l2_normalize: bool,
     ) -> Vec<Self::Feature> {
         let mut features_out = Vec::with_capacity(features_in.len());
         let mut buf = Vec::with_capacity(2 + 4 + 63);
@@ -141,14 +142,16 @@ pub trait FeatureBuilder {
         }
 
         // L2 normalization
-        let sum_of_squares = features_out
-            .iter()
-            .map(|f| f.weight() as f64 * f.weight() as f64)
-            .sum::<f64>();
-        if sum_of_squares > 0.0 {
-            let norm = sum_of_squares.sqrt() as f32;
-            for feature in &mut features_out {
-                *feature.weight_mut() /= norm;
+        if l2_normalize {
+            let sum_of_squares = features_out
+                .iter()
+                .map(|f| f.weight() as f64 * f.weight() as f64)
+                .sum::<f64>();
+            if sum_of_squares > 0.0 {
+                let norm = sum_of_squares.sqrt() as f32;
+                for feature in &mut features_out {
+                    *feature.weight_mut() /= norm;
+                }
             }
         }
 
