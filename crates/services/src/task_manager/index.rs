@@ -5,14 +5,8 @@
  */
 
 use crate::task_manager::{IndexAction, Task};
-use common::{
-    Server,
-    auth::AccessToken,
-    telemetry::tracers::store::{TracingStore, build_span_document},
-};
+use common::{Server, auth::AccessToken};
 use directory::{Type, backend::internal::manage::ManageDirectory};
-#[cfg(feature = "enterprise")]
-use email::message::metadata::MESSAGE_RECEIVED_MASK;
 use email::{cache::MessageCacheFetch, message::metadata::MessageMetadata};
 use groupware::{cache::GroupwareCache, calendar::CalendarEvent, contact::ContactCard};
 use std::cmp::Ordering;
@@ -552,11 +546,18 @@ async fn build_contact_document(
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+
+#[cfg(feature = "enterprise")]
 async fn build_tracing_span_document(
     server: &Server,
     account_id: u32,
     document_id: u32,
 ) -> trc::Result<Option<IndexDocument>> {
+    use common::telemetry::tracers::store::{TracingStore, build_span_document};
+
     let Some(index_fields) = server.core.jmap.index_fields.get(&SearchIndex::Tracing) else {
         return Ok(None);
     };
@@ -569,6 +570,17 @@ async fn build_tracing_span_document(
     } else {
         Ok(None)
     }
+}
+
+// SPDX-SnippetEnd
+
+#[cfg(not(feature = "enterprise"))]
+async fn build_tracing_span_document(
+    _: &Server,
+    _: u32,
+    _: u32,
+) -> trc::Result<Option<IndexDocument>> {
+    Ok(None)
 }
 
 async fn delete_email_metadata(
@@ -614,6 +626,7 @@ async fn delete_email_metadata(
                     .and_then(|e| e.undelete.as_ref())
                 {
                     use common::enterprise::undelete::DeletedItem;
+                    use email::message::metadata::MESSAGE_RECEIVED_MASK;
                     use store::{
                         Serialize,
                         write::{Archiver, BlobLink, BlobOp, now},

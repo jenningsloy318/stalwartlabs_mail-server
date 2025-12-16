@@ -481,7 +481,7 @@ impl ClassifierConfig {
             w_params,
             i_params,
             reservoir_capacity: config
-                .property_or_default("spam-filter.classifier.reservoir-capacity", "1024")
+                .property_or_default("spam-filter.classifier.samples.reservoir-capacity", "1024")
                 .unwrap_or(1024),
             auto_learn_card_is_ham: config
                 .property_or_default("spam-filter.card-is-ham.learn", "true")

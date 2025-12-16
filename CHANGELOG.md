@@ -2,9 +2,36 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.15.0] - 2025-12-16
+
+This version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
+
+## Added
+- Linear spam classifier using FTRL-Proximal and feature/cuckoo hashing.
+- Meilisearch store backend implementation (#1482).
+- PostgreSQL and mySQL native full-text search support.
+- Multiple performance improvements and database access optimizations.
+- Encryption-at-rest: Spam training privacy setting. 
+- Enterprise: Undelete e-mail feature now includes From/Subject/Received information.
+- IMAP: Implemented new keywords and mailbox attributes described in [draft-ietf-mailmaint-messageflag-mailboxattribute-13](https://datatracker.ietf.org/doc/html/draft-ietf-mailmaint-messageflag-mailboxattribute-13)
+
+## Changed
+- IMAP: Always return special use flags in responses.
+
+## Fixed
+- JMAP: `FileNode/set` fails to delete files (#2485).
+- JMAP: Return error when using `blobId` in JSContact and JSCalendar (#2431).
+- Directory: Deletion of list or domain issues (#2415).
+- MTA: Headers and body stripped from mail delivery subsystem failure notifications (#2344).
+- MTA: Hooks only run if sieve script, milter or rewrite is configured (#2317).
+- Autodiscover: Endpoint should be case insensitive (#2440).
+- Housekeeper: Panic during DST transition (#2366).
+- Import/Export: Fix import/export utility (#1882).
+- Enterprise: Remove tenant admin permissions when license is invalid.
+
 ## [0.14.1] - 2025-10-28
 
-If you are upgrading from v0.13.4 and below, this version includes **breaking changes** to the internal directory, calendar and contacts. Please read the [upgrading documentation](https://stalw.art/docs/install/upgrade) for more information on how to upgrade from previous versions.
+If you are upgrading from v0.13.4 and below, this version includes **breaking changes** to the internal directory, calendar and contacts. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_14.md) for more information on how to upgrade from previous versions.
 
 ## Added
 - Autoconfig for CalDAV, CardDAV and WebDAV (#1937)
@@ -18,7 +45,7 @@ If you are upgrading from v0.13.4 and below, this version includes **breaking ch
 
 ## [0.14.0] - 2025-10-22
 
-If you are upgrading from v0.13.4 and below, this version includes **breaking changes** to the internal directory, calendar and contacts. Please read the [upgrading documentation](https://stalw.art/docs/install/upgrade) for more information on how to upgrade from previous versions.
+If you are upgrading from v0.13.4 and below, this version includes **breaking changes** to the internal directory, calendar and contacts. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_14.md) for more information on how to upgrade from previous versions.
 
 ## Added
 - JMAP for Calendars ([draft-ietf-jmap-calendars](https://datatracker.ietf.org/doc/draft-ietf-jmap-calendars/)).
