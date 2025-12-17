@@ -154,6 +154,7 @@ pub async fn try_migrate(server: &Server) -> trc::Result<()> {
                 .await
                 .caused_by(trc::location!())?;
             migrate_v0_13(server).await.caused_by(trc::location!())?;
+            migrate_v0_14(server).await.caused_by(trc::location!())?;
             true
         }
         Some(2) => {
@@ -161,10 +162,12 @@ pub async fn try_migrate(server: &Server) -> trc::Result<()> {
                 .await
                 .caused_by(trc::location!())?;
             migrate_v0_13(server).await.caused_by(trc::location!())?;
+            migrate_v0_14(server).await.caused_by(trc::location!())?;
             true
         }
         Some(3) => {
             migrate_v0_13(server).await.caused_by(trc::location!())?;
+            migrate_v0_14(server).await.caused_by(trc::location!())?;
             false
         }
         Some(4) => {

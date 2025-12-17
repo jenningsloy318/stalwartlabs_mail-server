@@ -42,12 +42,12 @@ impl IndexDocument {
                 } = entry.get_mut()
                 {
                     existing_value.push(' ');
-                    existing_value.push_str(value);
+                    sanitize_text_to_buf(existing_value, value);
                 }
             }
             Entry::Vacant(entry) => {
                 entry.insert(SearchValue::Text {
-                    value: value.to_string(),
+                    value: sanitize_text(value),
                     language,
                 });
             }
@@ -69,11 +69,11 @@ impl IndexDocument {
             .insert(field.into(), SearchValue::Uint(value.into()));
     }
 
-    pub fn index_keyword(&mut self, field: impl Into<SearchField>, value: impl Into<String>) {
+    pub fn index_keyword(&mut self, field: impl Into<SearchField>, value: impl AsRef<str>) {
         self.fields.insert(
             field.into(),
             SearchValue::Text {
-                value: value.into(),
+                value: sanitize_text(value.as_ref()),
                 language: Language::None,
             },
         );
@@ -83,25 +83,31 @@ impl IndexDocument {
         &mut self,
         field: impl Into<SearchField>,
         key: impl AsRef<str>,
-        value: impl Into<String>,
+        value: impl AsRef<str>,
     ) {
         let search_field = field.into();
-        let key = key.as_ref().to_lowercase();
+        let key = key
+            .as_ref()
+            .chars()
+            .filter(|ch| !ch.is_control())
+            .map(|ch| ch.to_ascii_lowercase())
+            .collect::<String>();
+        let value = value.as_ref();
 
         match self.fields.entry(search_field) {
             Entry::Occupied(mut entry) => {
                 if let SearchValue::KeyValues(existing_key_values) = entry.get_mut() {
                     if let Some(existing_value) = existing_key_values.get_mut(&key) {
                         existing_value.push(' ');
-                        existing_value.push_str(&value.into());
+                        sanitize_text_to_buf(existing_value, value);
                     } else {
-                        existing_key_values.append(key, value.into());
+                        existing_key_values.append(key, sanitize_text(value));
                     }
                 }
             }
             Entry::Vacant(entry) => {
                 let mut new_key_values = VecMap::new();
-                new_key_values.append(key, value.into());
+                new_key_values.append(key, sanitize_text(value));
                 entry.insert(SearchValue::KeyValues(new_key_values));
             }
         }
@@ -273,4 +279,37 @@ impl SearchComparator {
             ascending: false,
         }
     }
+}
+
+#[inline(always)]
+fn write_sanitized(out: &mut String, text: &str) {
+    let mut last_is_space = true;
+    for ch in text.chars() {
+        match ch {
+            ' ' | '\x09'..='\x0d' => {
+                if !last_is_space {
+                    out.push(' ');
+                    last_is_space = true;
+                }
+            }
+            '\0'..='\x1f' | '\x7f'..='\u{9f}' => {}
+            ch => {
+                out.push(ch);
+                last_is_space = false;
+            }
+        }
+    }
+}
+
+#[inline(always)]
+fn sanitize_text_to_buf(out: &mut String, text: &str) {
+    out.reserve_exact(text.len());
+    write_sanitized(out, text);
+}
+
+#[inline(always)]
+fn sanitize_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    write_sanitized(&mut out, text);
+    out
 }

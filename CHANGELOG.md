@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.15.1] - 2025-12-17
+
+This version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
+
+## Added
+
+## Changed
+
+## Fixed
+- PostgreSQL: Sanitize search index values (#2533)
+- Elasticsearch: Ignore `resource_already_exists_exception` errors when creating indexes (#2535)
+- Migrate 0.13.x data (#2534)
+
 ## [0.15.0] - 2025-12-16
 
 This version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.

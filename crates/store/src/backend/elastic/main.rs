@@ -39,9 +39,6 @@ impl ElasticSearchStore {
             .property_or_default((&prefix, "index.include-source"), "false")
             .unwrap_or(false);
 
-        #[cfg(feature = "test_mode")]
-        let _ = es.drop_indexes().await;
-
         if let Err(err) = es.create_indexes(shards, replicas, with_source).await {
             config.new_build_error(prefix.as_str(), err.to_string());
         }
@@ -102,17 +99,39 @@ impl ElasticSearchStore {
             }
           }
         });
-        let body = serde_json::to_string(&body).unwrap_or_default();
 
-        assert_success(
-            self.client
-                .put(format!("{}/{}", self.url, T::index().index_name()))
-                .body(body)
-                .send()
-                .await,
-        )
-        .await
-        .map(|_| ())
+        let response = self
+            .client
+            .put(format!("{}/{}", self.url, T::index().index_name()))
+            .body(body.to_string())
+            .send()
+            .await
+            .map_err(|err| {
+                trc::StoreEvent::ElasticsearchError
+                    .reason(err)
+                    .details("Failed to create index")
+            })?;
+
+        match response.status().as_u16() {
+            200..300 => Ok(()),
+            status @ (400..500) => {
+                let text = response.text().await.unwrap_or_default();
+                if text.contains("resource_already_exists_exception") {
+                    // Index already exists, ignore
+                    Ok(())
+                } else {
+                    Err(trc::StoreEvent::ElasticsearchError
+                        .reason(text)
+                        .ctx(trc::Key::Code, status))
+                }
+            }
+            status => {
+                let text = response.text().await.unwrap_or_default();
+                Err(trc::StoreEvent::ElasticsearchError
+                    .reason(text)
+                    .ctx(trc::Key::Code, status))
+            }
+        }
     }
 
     #[cfg(feature = "test_mode")]
