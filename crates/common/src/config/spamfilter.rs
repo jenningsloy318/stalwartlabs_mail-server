@@ -87,8 +87,8 @@ pub struct ClassifierConfig {
     pub min_spam_samples: u64,
     pub auto_learn_reply_ham: bool,
     pub auto_learn_card_is_ham: bool,
-    pub auto_learn_spam_score: f32,
-    pub auto_learn_ham_score: f32,
+    pub auto_learn_spam_trap: bool,
+    pub auto_learn_spam_rbl_count: u32,
     pub hold_samples_for: u64,
     pub train_frequency: Option<u64>,
     pub log_scale: bool,
@@ -489,12 +489,12 @@ impl ClassifierConfig {
             auto_learn_reply_ham: config
                 .property_or_default("spam-filter.trusted-reply.learn", "true")
                 .unwrap_or(true),
-            auto_learn_spam_score: config
-                .property_or_default("spam-filter.classifier.auto-learn.spam-score", "8.0")
-                .unwrap_or(8.0),
-            auto_learn_ham_score: config
-                .property_or_default("spam-filter.classifier.auto-learn.ham-score", "-8.0")
-                .unwrap_or(-8.0),
+            auto_learn_spam_trap: config
+                .property_or_default("spam-filter.classifier.auto-learn.spam-trap", "true")
+                .unwrap_or(true),
+            auto_learn_spam_rbl_count: config
+                .property_or_default("spam-filter.classifier.auto-learn.spam-rbl-count", "2")
+                .unwrap_or(2),
             hold_samples_for: config
                 .property_or_default::<Duration>("spam-filter.classifier.samples.hold-for", "180d")
                 .unwrap_or(Duration::from_secs(180 * 24 * 60 * 60))

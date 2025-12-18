@@ -437,23 +437,40 @@ impl EmailIngest for Server {
 
                 is_spam
             }
-            IngestSource::Jmap {
-                train_classifier: true,
-            }
-            | IngestSource::Imap {
-                train_classifier: true,
-            } if self.core.spam.enabled => {
-                if params.keywords.contains(&Keyword::Junk) {
-                    train_spam = Some(true);
-                } else if params.keywords.contains(&Keyword::NotJunk) {
-                    if !params.mailbox_ids.contains(&TRASH_ID) {
+            IngestSource::Jmap { train_classifier } | IngestSource::Imap { train_classifier } => {
+                // Determine spam training
+                if train_classifier && self.core.spam.enabled {
+                    if params.keywords.contains(&Keyword::Junk) {
+                        train_spam = Some(true);
+                    } else if params.keywords.contains(&Keyword::NotJunk) {
+                        if !params.mailbox_ids.contains(&TRASH_ID) {
+                            train_spam = Some(false);
+                        }
+                    } else if params.mailbox_ids[0] == JUNK_ID {
+                        train_spam = Some(true);
+                    } else if params.mailbox_ids[0] == INBOX_ID {
                         train_spam = Some(false);
                     }
-                } else if params.mailbox_ids[0] == JUNK_ID {
-                    train_spam = Some(true);
-                } else if params.mailbox_ids[0] == INBOX_ID {
-                    train_spam = Some(false);
                 }
+
+                // Set receivedAt if not present
+                if params.received_at.is_none() {
+                    params.received_at = message
+                        .root_part()
+                        .headers()
+                        .iter()
+                        .filter_map(|header| {
+                            if let (HeaderName::Received, HeaderValue::Received(received)) =
+                                (&header.name, &header.value)
+                            {
+                                received.date.map(|dt| dt.to_timestamp() as u64)
+                            } else {
+                                None
+                            }
+                        })
+                        .max();
+                }
+
                 false
             }
             _ => false,

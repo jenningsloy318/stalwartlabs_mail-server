@@ -78,8 +78,9 @@ category = 0
 confidence = 1
 explanation = 2
 
-[spam-filter.reputation]
-enable = true
+[spam-filter.classifier.samples]
+min-ham = 10
+min-spam = 10
 
 [session.rcpt]
 relay = true

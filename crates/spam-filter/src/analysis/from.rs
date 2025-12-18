@@ -179,7 +179,12 @@ impl SpamFilterAnalyzeFrom for Server {
             // Validate space in FROM
             if !from_name.is_empty()
                 && !from_addr.address.is_empty()
-                && !from_raw_utf8.contains(" <")
+                && from_raw_utf8
+                    .as_bytes()
+                    .iter()
+                    .position(|&b| b == b'<')
+                    .and_then(|v| from_raw_utf8.as_bytes().get(v - 1))
+                    .is_none_or(|v| !v.is_ascii_whitespace())
             {
                 ctx.result.add_tag("NO_SPACE_IN_FROM");
             }

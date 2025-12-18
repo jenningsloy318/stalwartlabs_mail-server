@@ -56,6 +56,8 @@ impl SpamFilterAnalyzeScore for Server {
         // Calculate final score
         let mut results = vec![];
         let mut header_len = 60;
+        let mut is_spam_trap = false;
+        let mut rbl_count = 0;
 
         for tag in &ctx.result.tags {
             let score = match self.core.spam.lists.scores.get(tag) {
@@ -68,6 +70,11 @@ impl SpamFilterAnalyzeScore for Server {
                 }
                 None | Some(SpamFilterAction::Disabled) => 0.0,
             };
+            if tag == "SPAM_TRAP" {
+                is_spam_trap = true;
+            } else if score > 1.0 && tag.starts_with("RBL_") {
+                rbl_count += 1;
+            }
             ctx.result.score += score;
             header_len += tag.len() + 10;
             if score != 0.0 || !tag.starts_with("X_") {
@@ -145,11 +152,8 @@ impl SpamFilterAnalyzeScore for Server {
                 let _ = write!(&mut headers, "X-Spam-LLM: {category} ({explanation})\r\n",);
             }
 
-            let class = if final_score >= self.core.spam.scores.spam_threshold {
-                "spam"
-            } else {
-                "ham"
-            };
+            let is_spam = final_score >= self.core.spam.scores.spam_threshold;
+            let class = if is_spam { "spam" } else { "ham" };
 
             if avg_confidence != 0.0 {
                 let _ = write!(
@@ -163,18 +167,16 @@ impl SpamFilterAnalyzeScore for Server {
                 );
             }
 
-            // Autolearn
+            // Autolearn SPAM
             let mut train_spam = None;
-            let config = self.core.spam.classifier.as_ref().unwrap();
-            if config.auto_learn_spam_score > 0.0 && final_score >= config.auto_learn_spam_score {
-                if !ctx.result.has_tag("PROB_SPAM_HIGH") {
-                    train_spam = Some(true);
-                }
-            } else if config.auto_learn_ham_score < 0.0
-                && final_score <= config.auto_learn_ham_score
-                && !ctx.result.has_tag("PROB_HAM_HIGH")
+            if is_spam
+                && self.core.spam.classifier.as_ref().is_some_and(|c| {
+                    (c.auto_learn_spam_trap && is_spam_trap)
+                        || (c.auto_learn_spam_rbl_count > 0
+                            && rbl_count >= c.auto_learn_spam_rbl_count)
+                })
             {
-                train_spam = Some(false);
+                train_spam = Some(true);
             }
 
             SpamFilterAction::Allow(SpamFilterScore {

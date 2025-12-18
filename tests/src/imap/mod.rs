@@ -670,18 +670,14 @@ wait = "1ms"
 enable = true
 
 [spam-filter.list]
-scores = {"PROB_SPAM_LOW" = "10.0", "PROB_SPAM_HIGH" = "10.0"}
+scores = {"PROB_SPAM_LOW" = "10.0", "PROB_SPAM_HIGH" = "10.0", "SPAM_TRAP" = "100.0"}
+
+[spam-filter.classifier.samples]
+min-ham = 10
+min-spam = 10
 
 [lookup]
 "spam-traps" = {"spamtrap@*"}
-
-[queue]
-path = "{TMP}"
-hash = 64
-
-[report]
-path = "{TMP}"
-hash = 64
 
 [resolver]
 type = "system"
