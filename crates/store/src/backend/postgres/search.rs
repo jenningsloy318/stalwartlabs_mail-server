@@ -58,6 +58,8 @@ impl PostgresStore {
 
                 if let Some(value) = fields.get(field) {
                     let value_ref = format!("${}", values.len() + 1);
+                    let truncate_text = matches!(value, SearchValue::Text { value, .. } 
+                        if value.len() > 255);
 
                     if field.is_text() {
                         let language = match &value {
@@ -70,13 +72,23 @@ impl PostgresStore {
                         };
 
                         let _ = write!(&mut query, "to_tsvector('{language}',{value_ref})");
+                    } else if truncate_text {
+                        query.push_str("left(");
+                        query.push_str(&value_ref);
+                        query.push_str(",512)");
                     } else {
                         query.push_str(&value_ref);
                     }
 
                     if field.sort_column().is_some() {
-                        query.push(',');
-                        query.push_str(&value_ref);
+                        if truncate_text {
+                            query.push_str(",left(");
+                            query.push_str(&value_ref);
+                            query.push_str(",255)");
+                        } else {
+                            query.push(',');
+                            query.push_str(&value_ref);
+                        }
                     }
 
                     values.push(value as &(dyn ToSql + Sync));

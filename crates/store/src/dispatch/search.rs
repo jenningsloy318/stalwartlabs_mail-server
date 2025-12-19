@@ -57,10 +57,15 @@ impl SearchStore {
                 _ => (),
             }
         }
+
         if account_id == u32::MAX {
             return Err(trc::StoreEvent::UnexpectedError
                 .reason("Account ID filter is required for account queries")
                 .caused_by(trc::location!()));
+        }
+
+        if !has_local_filters && !has_external_filters && query.comparators.is_empty() {
+            return Ok(query.mask.iter().collect());
         }
 
         if !has_local_filters && query.comparators.iter().all(|c| c.is_external()) {
@@ -68,10 +73,15 @@ impl SearchStore {
                 .sub_query(query.index, &query.filters, &query.comparators)
                 .await
                 .map(|results| {
-                    results
-                        .into_iter()
-                        .filter(|id| query.mask.contains(*id))
-                        .collect()
+                    if !results.is_empty() || has_external_filters {
+                        results
+                            .into_iter()
+                            .filter(|id| query.mask.contains(*id))
+                            .collect()
+                    } else {
+                        // Database sort is broken, return masked results
+                        query.mask.iter().collect()
+                    }
                 })
                 .caused_by(trc::location!());
         }
@@ -113,7 +123,8 @@ impl SearchStore {
             .with_mask(query.mask)
             .filter();
 
-        match results.results().len().cmp(&1) {
+        let total_results = results.results().len();
+        match total_results.cmp(&1) {
             Ordering::Equal => Ok(vec![results.results().min().unwrap()]),
             Ordering::Less => Ok(vec![]),
             Ordering::Greater => {
@@ -133,7 +144,7 @@ impl SearchStore {
                     }
 
                     if !external.is_empty() {
-                        let results = results.results();
+                        let mut results = results.results().clone();
                         let filters = vec![
                             SearchFilter::Operator {
                                 field: SearchField::AccountId,
@@ -152,14 +163,19 @@ impl SearchStore {
                             },
                         ];
 
-                        let ordered_results =
-                            self.sub_query(query.index, &filters, &external).await?;
+                        let mut ordered_results = Vec::with_capacity(total_results as usize);
+                        for ordered_result in
+                            self.sub_query(query.index, &filters, &external).await?
+                        {
+                            if results.remove(ordered_result) {
+                                ordered_results.push(ordered_result);
+                            }
+                        }
+                        // Add any remaining results not yet in the index
+                        ordered_results.extend(results.into_iter());
 
                         if local.is_empty() {
-                            return Ok(ordered_results
-                                .into_iter()
-                                .filter(|id| results.contains(*id))
-                                .collect());
+                            return Ok(ordered_results);
                         }
 
                         let comparator = SearchComparator::SortedSet {

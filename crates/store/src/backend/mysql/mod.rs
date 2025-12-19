@@ -72,7 +72,13 @@ impl MysqlSearchField for EmailSearchField {
             EmailSearchField::Size => "INT",
             EmailSearchField::HasAttachment => "BOOLEAN",
             EmailSearchField::Headers => "JSON",
-            _ => "TEXT",
+            EmailSearchField::From => "TEXT",
+            EmailSearchField::To => "TEXT",
+            EmailSearchField::Cc => "TEXT",
+            EmailSearchField::Bcc => "TEXT",
+            EmailSearchField::Subject => "TEXT",
+            EmailSearchField::Body => "MEDIUMTEXT",
+            EmailSearchField::Attachment => "MEDIUMTEXT",
         }
     }
 }
@@ -132,7 +138,10 @@ impl MysqlSearchField for FileSearchField {
     }
 
     fn column_type(&self) -> &'static str {
-        "TEXT"
+        match self {
+            FileSearchField::Name => "TEXT",
+            FileSearchField::Content => "MEDIUMTEXT",
+        }
     }
 }
 impl MysqlSearchField for TracingSearchField {
