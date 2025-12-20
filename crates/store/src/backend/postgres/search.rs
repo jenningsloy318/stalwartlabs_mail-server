@@ -58,21 +58,23 @@ impl PostgresStore {
 
                 if let Some(value) = fields.get(field) {
                     let value_ref = format!("${}", values.len() + 1);
-                    let truncate_text = matches!(value, SearchValue::Text { value, .. } 
-                        if value.len() > 255);
+                    let (text_len, language) = if let SearchValue::Text { value, language } = value
+                    {
+                        (
+                            value.len(),
+                            if self.languages.contains(language) {
+                                pg_lang(language).unwrap_or("simple")
+                            } else {
+                                "simple"
+                            },
+                        )
+                    } else {
+                        (0, "simple")
+                    };
 
                     if field.is_text() {
-                        let language = match &value {
-                            SearchValue::Text { language, .. }
-                                if self.languages.contains(language) =>
-                            {
-                                pg_lang(language).unwrap_or("simple")
-                            }
-                            _ => "simple",
-                        };
-
                         let _ = write!(&mut query, "to_tsvector('{language}',{value_ref})");
-                    } else if truncate_text {
+                    } else if text_len > 512 {
                         query.push_str("left(");
                         query.push_str(&value_ref);
                         query.push_str(",512)");
@@ -81,7 +83,7 @@ impl PostgresStore {
                     }
 
                     if field.sort_column().is_some() {
-                        if truncate_text {
+                        if text_len > 255 {
                             query.push_str(",left(");
                             query.push_str(&value_ref);
                             query.push_str(",255)");
@@ -313,7 +315,16 @@ impl ToSql for SearchValue {
         Self: Sized,
     {
         match self {
-            SearchValue::Text { value, .. } => value.to_sql(ty, out),
+            SearchValue::Text { value, .. } => {
+                // Truncate large text fields to avoid Postgres errors (see https://www.postgresql.org/docs/current/textsearch-limitations.html)
+
+                if value.len() > 1_048_574 {
+                    let pos = value.floor_char_boundary(1_048_574);
+                    (&value[..pos]).to_sql(ty, out)
+                } else {
+                    value.to_sql(ty, out)
+                }
+            }
             SearchValue::Int(v) => match *ty {
                 Type::INT4 => (*v as i32).to_sql(ty, out),
                 _ => v.to_sql(ty, out),
@@ -342,7 +353,16 @@ impl ToSql for SearchValue {
         out: &mut bytes::BytesMut,
     ) -> Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>> {
         match self {
-            SearchValue::Text { value, .. } => value.to_sql_checked(ty, out),
+            SearchValue::Text { value, .. } => {
+                // Truncate large text fields to avoid Postgres errors (see https://www.postgresql.org/docs/current/textsearch-limitations.html)
+
+                if value.len() > 1_048_574 {
+                    let pos = value.floor_char_boundary(1_048_574);
+                    (&value[..pos]).to_sql_checked(ty, out)
+                } else {
+                    value.to_sql_checked(ty, out)
+                }
+            }
             SearchValue::Int(v) => match *ty {
                 Type::INT4 => (*v as i32).to_sql_checked(ty, out),
                 _ => v.to_sql_checked(ty, out),

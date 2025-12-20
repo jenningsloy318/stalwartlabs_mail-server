@@ -2,9 +2,29 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.15.2] - 2025-12-22
+
+This version includes **multiple breaking changes**. If you are upgrading from v0.14.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions. If you are upgrading from v0.15.x, replace the binary and update the webadmin.
+
+## Added
+- OAuth: Add device authorization endpoint (#2225).
+
+## Changed
+- Antispam: Only auto-learn spam from traps or multiple RBL hits.
+
+## Fixed
+- mySQL search: Use `MEDIUMTEXT` field type for email body and attachments (#2544).
+- PostgreSQL search: Truncate large text fields.
+- Antispam: Fix `NO_SPACE_IN_FROM` spam tag detection logic (#2372).
+- IMAP: Fix shared folder double nesting (test suite credits to @ochnygosch) (#2358).
+- JMAP: Use latest `Received` header in JMAP `Email/import` (credits to @apexskier) (#2374).
+- JMAP: Return unsorted search results when the index is not ready (#2544).
+- LDAP: Lowercase attribute comparison (credits to @pdf) (#2363).
+- CLI: Fix same-host JMAP redirection on non-standard ports (#2271).
+
 ## [0.15.1] - 2025-12-17
 
-This version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
+This version includes **multiple breaking changes**. If you are upgrading from v0.14.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
 
 ## Added
 

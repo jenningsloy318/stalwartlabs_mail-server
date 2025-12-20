@@ -289,7 +289,15 @@ impl SearchOperator {
 impl From<SearchValue> for Value {
     fn from(value: SearchValue) -> Self {
         match value {
-            SearchValue::Text { value, .. } => Value::Bytes(value.into_bytes()),
+            SearchValue::Text { mut value, .. } => {
+                // Truncate values larger than 16MB to avoid MySQL errors
+                if value.len() > 16_777_214 {
+                    let pos = value.floor_char_boundary(16_777_214);
+                    value.truncate(pos);
+                }
+
+                Value::Bytes(value.into_bytes())
+            }
             SearchValue::KeyValues(vec_map) => serde_json::to_string(&vec_map)
                 .map(|v| Value::Bytes(v.into_bytes()))
                 .unwrap_or(Value::NULL),
