@@ -20,6 +20,7 @@ use nlp::language::Language;
 use roaring::RoaringBitmap;
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
+use std::fmt::Display;
 use std::ops::{BitAndAssign, BitOrAssign, BitXorAssign};
 use utils::config::utils::ParseValue;
 use utils::map::vec_map::VecMap;
@@ -110,7 +111,7 @@ pub enum SearchValue {
     Boolean(bool),
 }
 
-pub trait SearchDocumentId: Sized {
+pub trait SearchDocumentId: Sized + Copy + Display {
     fn from_u64(id: u64) -> Self;
     fn field() -> SearchField;
 }

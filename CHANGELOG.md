@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file. This projec
 
 ## [0.15.2] - 2025-12-22
 
-This version includes **multiple breaking changes**. If you are upgrading from v0.14.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions. If you are upgrading from v0.15.x, replace the binary and update the webadmin.
+If you are upgrading from v0.14.x and below, this version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
+If you are upgrading from v0.15.x, replace the binary and update the webadmin.
 
 ## Added
 - OAuth: Add device authorization endpoint (#2225).
@@ -15,6 +16,7 @@ This version includes **multiple breaking changes**. If you are upgrading from v
 ## Fixed
 - mySQL search: Use `MEDIUMTEXT` field type for email body and attachments (#2544).
 - PostgreSQL search: Truncate large text fields.
+- ElasticSearch: Implement pagination (#2551).
 - Antispam: Fix `NO_SPACE_IN_FROM` spam tag detection logic (#2372).
 - IMAP: Fix shared folder double nesting (test suite credits to @ochnygosch) (#2358).
 - JMAP: Use latest `Received` header in JMAP `Email/import` (credits to @apexskier) (#2374).

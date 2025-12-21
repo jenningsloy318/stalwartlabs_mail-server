@@ -285,6 +285,35 @@ pub async fn test(store: SearchStore, do_insert: bool) {
         println!("\nInsert took {} ms.", now.elapsed().as_millis());
     }
 
+    if store.internal_fts().is_none() {
+        let ids = store
+            .query_account(
+                SearchQuery::new(SearchIndex::Email)
+                    .with_filters(vec![SearchFilter::eq(SearchField::AccountId, 0u32)])
+                    .with_comparator(SearchComparator::ascending(EmailSearchField::ReceivedAt))
+                    .with_mask(mask.clone()),
+            )
+            .await
+            .unwrap()
+            .into_iter()
+            .collect::<RoaringBitmap>();
+        assert_eq!(ids, mask);
+        let ids = store
+            .query_account(
+                SearchQuery::new(SearchIndex::Email)
+                    .with_filters(vec![
+                        SearchFilter::eq(SearchField::AccountId, 0u32),
+                        SearchFilter::ge(SearchField::DocumentId, 0u32),
+                    ])
+                    .with_mask(mask.clone()),
+            )
+            .await
+            .unwrap()
+            .into_iter()
+            .collect::<RoaringBitmap>();
+        assert_eq!(ids, mask);
+    }
+
     println!("Running account filter tests...");
     let now = Instant::now();
     test_filter(store.clone(), &fields, &mask).await;

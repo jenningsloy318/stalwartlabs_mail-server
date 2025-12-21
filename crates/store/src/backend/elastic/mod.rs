@@ -37,6 +37,7 @@ pub struct Total {
 pub struct Hit {
     #[serde(rename = "_id", deserialize_with = "deserialize_string_to_u64")]
     pub id: u64,
+    pub sort: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -60,45 +60,58 @@ impl ElasticSearchStore {
         filters: &[SearchFilter],
         sort: &[SearchComparator],
     ) -> trc::Result<Vec<R>> {
-        let query = Map::from_iter(
-            [
-                Some(("query".to_string(), build_query(filters))),
-                Some(("size".to_string(), Value::from(10_000))),
-                Some(("_source".to_string(), Value::from(false))),
-                (!sort.is_empty()).then(|| ("sort".to_string(), build_sort(sort))),
-            ]
-            .into_iter()
-            .flatten(),
-        );
+        let mut search_after: Option<Value> = None;
+        let mut results = Vec::new();
+        let mut has_more = true;
 
-        let response = assert_success(
-            self.client
-                .post(format!("{}/{}/_search", self.url, index.index_name()))
-                .body(serde_json::to_string(&query).unwrap_or_default())
-                .send()
-                .await,
-        )
-        .await?;
+        while has_more {
+            let query = Map::from_iter(
+                [
+                    Some(("query".to_string(), build_query(filters))),
+                    Some(("size".to_string(), Value::from(10_000))),
+                    Some(("_source".to_string(), Value::from(false))),
+                    Some((
+                        "sort".to_string(),
+                        build_sort(sort, R::field().field_name()),
+                    )),
+                    search_after
+                        .take()
+                        .map(|sa| ("search_after".to_string(), sa)),
+                ]
+                .into_iter()
+                .flatten(),
+            );
 
-        let text = response
-            .text()
-            .await
-            .map_err(|err| trc::StoreEvent::ElasticsearchError.reason(err))?;
+            let response = assert_success(
+                self.client
+                    .post(format!("{}/{}/_search", self.url, index.index_name()))
+                    .body(serde_json::to_string(&query).unwrap_or_default())
+                    .send()
+                    .await,
+            )
+            .await?;
 
-        serde_json::from_str::<SearchResponse>(&text)
-            .map(|results| {
-                results
-                    .hits
-                    .hits
-                    .into_iter()
-                    .map(|hit| R::from_u64(hit.id))
-                    .collect()
-            })
-            .map_err(|err| {
+            let text = response
+                .text()
+                .await
+                .map_err(|err| trc::StoreEvent::ElasticsearchError.reason(err))?;
+
+            let response = serde_json::from_str::<SearchResponse>(&text).map_err(|err| {
                 trc::StoreEvent::ElasticsearchError
                     .reason(err)
                     .details(text)
-            })
+            })?;
+
+            has_more = response.hits.hits.len() == 10_000
+                && response.hits.hits.last().unwrap().sort.is_some();
+
+            for hit in response.hits.hits {
+                search_after = hit.sort;
+                results.push(R::from_u64(hit.id));
+            }
+        }
+
+        Ok(results)
     }
 
     pub async fn unindex(&self, filter: SearchQuery) -> trc::Result<u64> {
@@ -278,7 +291,7 @@ fn build_query(filters: &[SearchFilter]) -> Value {
     }
 }
 
-fn build_sort(sort: &[SearchComparator]) -> Value {
+fn build_sort(sort: &[SearchComparator], tie_breaker: &str) -> Value {
     Value::Array(
         sort.iter()
             .filter_map(|comp| match comp {
@@ -295,6 +308,9 @@ fn build_sort(sort: &[SearchComparator]) -> Value {
                 }
                 _ => None,
             })
+            .chain([json!({
+                tie_breaker: "asc"
+            })])
             .collect(),
     )
 }
