@@ -186,6 +186,7 @@ impl Language {
             "ca" => Language::Catalan,
             "el" => Language::Greek,
             "sv" => Language::Swedish,
+            "pl" => Language::Polish
         )
         .copied()
     }
