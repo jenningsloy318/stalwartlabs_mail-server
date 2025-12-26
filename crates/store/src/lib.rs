@@ -683,10 +683,12 @@ impl From<Rows> for Vec<u32> {
 }
 
 impl Store {
+    #[inline(always)]
     pub fn is_none(&self) -> bool {
         matches!(self, Self::None)
     }
 
+    #[inline(always)]
     pub fn is_sql(&self) -> bool {
         match self {
             #[cfg(feature = "sqlite")]
@@ -705,12 +707,22 @@ impl Store {
         }
     }
 
+    #[inline(always)]
     pub fn is_pg_or_mysql(&self) -> bool {
         match self {
             #[cfg(feature = "mysql")]
             Store::MySQL(_) => true,
             #[cfg(feature = "postgres")]
             Store::PostgreSQL(_) => true,
+            _ => false,
+        }
+    }
+
+    #[inline(always)]
+    pub fn is_foundationdb(&self) -> bool {
+        match self {
+            #[cfg(feature = "foundation")]
+            Store::FoundationDb(_) => true,
             _ => false,
         }
     }

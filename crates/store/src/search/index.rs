@@ -22,6 +22,8 @@ use utils::cheeky_hash::CheekyHash;
 
 impl Store {
     pub(crate) async fn index(&self, documents: Vec<IndexDocument>) -> trc::Result<()> {
+        let truncate_at = if self.is_foundationdb() { 1_048_576 } else { 0 };
+
         for document in documents {
             let mut batch = BatchBuilder::new();
             let index = document.index;
@@ -63,7 +65,7 @@ impl Store {
                 }
             }
 
-            let term_index_builder = TermIndexBuilder::build(document);
+            let term_index_builder = TermIndexBuilder::build(document, truncate_at);
             if let Some(old_term_index) = old_term_index {
                 let old_term_index = old_term_index
                     .unarchive::<TermIndex>()
@@ -79,9 +81,11 @@ impl Store {
                     .caused_by(trc::location!())?;
             }
 
-            self.write(batch.build_all())
-                .await
-                .caused_by(trc::location!())?;
+            let mut commit_points = batch.commit_points();
+            for commit_point in commit_points.iter() {
+                let batch = batch.build_one(commit_point);
+                self.write(batch).await.caused_by(trc::location!())?;
+            }
         }
         Ok(())
     }

@@ -41,7 +41,7 @@ pub(crate) struct TermIndexBuilder {
 }
 
 impl TermIndexBuilder {
-    pub fn build(document: IndexDocument) -> Self {
+    pub fn build(document: IndexDocument, truncate_at: usize) -> Self {
         let mut terms: CheekyBTreeMap<u32> = CheekyBTreeMap::new();
         let mut fields: Vec<SearchIndexField> = Vec::new();
         let mut account_id = None;
@@ -79,9 +79,16 @@ impl TermIndexBuilder {
             let field = match value {
                 SearchValue::Text { value, language } => {
                     if field.is_text() {
+                        let value = if truncate_at > 0 && value.len() > truncate_at {
+                            let pos = value.floor_char_boundary(truncate_at);
+                            &value[..pos]
+                        } else {
+                            &value
+                        };
+
                         match language {
                             Language::Unknown => {
-                                for token in WordTokenizer::new(value.as_str(), MAX_TOKEN_LENGTH) {
+                                for token in WordTokenizer::new(value, MAX_TOKEN_LENGTH) {
                                     terms
                                         .entry(CheekyHash::new(token.word.as_bytes()))
                                         .or_default()
@@ -89,7 +96,7 @@ impl TermIndexBuilder {
                                 }
                             }
                             Language::None => {
-                                for token in SpaceTokenizer::new(value.as_str(), MAX_TOKEN_LENGTH) {
+                                for token in SpaceTokenizer::new(value, MAX_TOKEN_LENGTH) {
                                     terms
                                         .entry(CheekyHash::new(token.as_bytes()))
                                         .or_default()
@@ -97,7 +104,7 @@ impl TermIndexBuilder {
                                 }
                             }
                             _ => {
-                                for token in Stemmer::new(&value, language, MAX_TOKEN_LENGTH) {
+                                for token in Stemmer::new(value, language, MAX_TOKEN_LENGTH) {
                                     terms
                                         .entry(CheekyHash::new(token.word.as_bytes()))
                                         .or_default()
@@ -195,41 +202,47 @@ impl TermIndex {
         id: SearchIndexId,
     ) -> trc::Result<()> {
         let archive = Archiver::new(self);
-        batch.set(
-            ValueClass::SearchIndex(SearchIndexClass {
-                index,
-                id,
-                typ: SearchIndexType::Document,
-            }),
-            archive.serialize()?,
-        );
+        batch
+            .set(
+                ValueClass::SearchIndex(SearchIndexClass {
+                    index,
+                    id,
+                    typ: SearchIndexType::Document,
+                }),
+                archive.serialize()?,
+            )
+            .commit_point();
 
         for term in archive.inner.terms {
             let mut fields = term.fields;
             while let Some(field) = fields.bit_pop() {
-                batch.set(
-                    ValueClass::SearchIndex(SearchIndexClass {
-                        index,
-                        id,
-                        typ: SearchIndexType::Term {
-                            hash: term.hash,
-                            field,
-                        },
-                    }),
-                    vec![],
-                );
+                batch
+                    .set(
+                        ValueClass::SearchIndex(SearchIndexClass {
+                            index,
+                            id,
+                            typ: SearchIndexType::Term {
+                                hash: term.hash,
+                                field,
+                            },
+                        }),
+                        vec![],
+                    )
+                    .commit_point();
             }
         }
 
         for field in archive.inner.fields {
-            batch.set(
-                ValueClass::SearchIndex(SearchIndexClass {
-                    index,
-                    id,
-                    typ: SearchIndexType::Index { field },
-                }),
-                vec![],
-            );
+            batch
+                .set(
+                    ValueClass::SearchIndex(SearchIndexClass {
+                        index,
+                        id,
+                        typ: SearchIndexType::Index { field },
+                    }),
+                    vec![],
+                )
+                .commit_point();
         }
 
         Ok(())
@@ -243,14 +256,16 @@ impl TermIndex {
         old_term: &ArchivedTermIndex,
     ) -> trc::Result<()> {
         let archive = Archiver::new(self);
-        batch.set(
-            ValueClass::SearchIndex(SearchIndexClass {
-                index,
-                id,
-                typ: SearchIndexType::Document,
-            }),
-            archive.serialize()?,
-        );
+        batch
+            .set(
+                ValueClass::SearchIndex(SearchIndexClass {
+                    index,
+                    id,
+                    typ: SearchIndexType::Document,
+                }),
+                archive.serialize()?,
+            )
+            .commit_point();
 
         let mut old_terms = AHashSet::with_capacity(old_term.terms.len());
         let mut old_fields = AHashSet::with_capacity(old_term.fields.len());
@@ -279,37 +294,45 @@ impl TermIndex {
                 };
 
                 if !old_terms.remove(&typ) {
-                    batch.set(
-                        ValueClass::SearchIndex(SearchIndexClass { index, id, typ }),
-                        vec![],
-                    );
+                    batch
+                        .set(
+                            ValueClass::SearchIndex(SearchIndexClass { index, id, typ }),
+                            vec![],
+                        )
+                        .commit_point();
                 }
             }
         }
 
         for field in archive.inner.fields {
             if !old_fields.remove(&field) {
-                batch.set(
-                    ValueClass::SearchIndex(SearchIndexClass {
-                        index,
-                        id,
-                        typ: SearchIndexType::Index { field },
-                    }),
-                    vec![],
-                );
+                batch
+                    .set(
+                        ValueClass::SearchIndex(SearchIndexClass {
+                            index,
+                            id,
+                            typ: SearchIndexType::Index { field },
+                        }),
+                        vec![],
+                    )
+                    .commit_point();
             }
         }
 
         for typ in old_terms {
-            batch.clear(ValueClass::SearchIndex(SearchIndexClass { index, id, typ }));
+            batch
+                .clear(ValueClass::SearchIndex(SearchIndexClass { index, id, typ }))
+                .commit_point();
         }
 
         for field in old_fields {
-            batch.clear(ValueClass::SearchIndex(SearchIndexClass {
-                index,
-                id,
-                typ: SearchIndexType::Index { field },
-            }));
+            batch
+                .clear(ValueClass::SearchIndex(SearchIndexClass {
+                    index,
+                    id,
+                    typ: SearchIndexType::Index { field },
+                }))
+                .commit_point();
         }
 
         Ok(())
@@ -318,37 +341,43 @@ impl TermIndex {
 
 impl ArchivedTermIndex {
     pub fn delete_index(&self, batch: &mut BatchBuilder, index: SearchIndex, id: SearchIndexId) {
-        batch.clear(ValueClass::SearchIndex(SearchIndexClass {
-            index,
-            id,
-            typ: SearchIndexType::Document,
-        }));
+        batch
+            .clear(ValueClass::SearchIndex(SearchIndexClass {
+                index,
+                id,
+                typ: SearchIndexType::Document,
+            }))
+            .commit_point();
 
         for term in self.terms.iter() {
             let mut fields = term.fields.to_native();
             while let Some(field) = fields.bit_pop() {
-                batch.clear(ValueClass::SearchIndex(SearchIndexClass {
-                    index,
-                    id,
-                    typ: SearchIndexType::Term {
-                        hash: term.hash.to_native(),
-                        field,
-                    },
-                }));
+                batch
+                    .clear(ValueClass::SearchIndex(SearchIndexClass {
+                        index,
+                        id,
+                        typ: SearchIndexType::Term {
+                            hash: term.hash.to_native(),
+                            field,
+                        },
+                    }))
+                    .commit_point();
             }
         }
 
         for field in self.fields.iter() {
-            batch.clear(ValueClass::SearchIndex(SearchIndexClass {
-                index,
-                id,
-                typ: SearchIndexType::Index {
-                    field: SearchIndexField {
-                        field_id: field.field_id,
-                        data: field.data.to_vec(),
+            batch
+                .clear(ValueClass::SearchIndex(SearchIndexClass {
+                    index,
+                    id,
+                    typ: SearchIndexType::Index {
+                        field: SearchIndexField {
+                            field_id: field.field_id,
+                            data: field.data.to_vec(),
+                        },
                     },
-                },
-            }));
+                }))
+                .commit_point();
         }
     }
 }
