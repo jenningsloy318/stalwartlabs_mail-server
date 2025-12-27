@@ -15,6 +15,7 @@ use std::{
 use store::{
     SearchStore,
     ahash::AHashMap,
+    rand::{self, Rng, distr::Alphanumeric},
     roaring::RoaringBitmap,
     search::{
         EmailSearchField, IndexDocument, SearchComparator, SearchField, SearchFilter,
@@ -120,6 +121,47 @@ pub async fn test(store: SearchStore, do_insert: bool) {
     println!("Running global id filtering tests...");
     test_global(store.clone()).await;
 
+    // Large document insert test
+    println!("Running large document insert tests...");
+    let mut large_text = String::with_capacity(20 * 1024 * 1024);
+    while large_text.len() < 20 * 1024 * 1024 {
+        let word = rand::rng()
+            .sample_iter(&Alphanumeric)
+            .take(rand::rng().random_range(3..10))
+            .map(char::from)
+            .collect::<String>();
+        large_text.push_str(&word);
+        large_text.push(' ');
+    }
+    let mut document = IndexDocument::new(SearchIndex::Email)
+        .with_account_id(1)
+        .with_document_id(1);
+    for field in [
+        EmailSearchField::From,
+        EmailSearchField::To,
+        EmailSearchField::Cc,
+        EmailSearchField::Bcc,
+        EmailSearchField::Subject,
+    ] {
+        document.index_text(field, &large_text[..10 * 1024], Language::English);
+    }
+    for field in [EmailSearchField::Body, EmailSearchField::Attachment] {
+        document.index_text(field, &large_text, Language::English);
+    }
+    for field in [
+        EmailSearchField::ReceivedAt,
+        EmailSearchField::SentAt,
+        EmailSearchField::Size,
+    ] {
+        document.index_unsigned(field, rand::rng().random_range(100u64..1_000_000u64));
+    }
+    store.index(vec![document]).await.unwrap();
+    // Refresh
+    if let SearchStore::ElasticSearch(store) = &store {
+        store.refresh_index(SearchIndex::Email).await.unwrap();
+    }
+
+    println!("Running account filtering tests...");
     let filter_ids = std::env::var("QUICK_TEST").is_ok().then(|| {
         let mut ids = AHashSet::new();
         for &id in ALL_IDS {

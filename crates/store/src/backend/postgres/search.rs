@@ -318,9 +318,8 @@ impl ToSql for SearchValue {
             SearchValue::Text { value, .. } => {
                 // Truncate large text fields to avoid Postgres errors (see https://www.postgresql.org/docs/current/textsearch-limitations.html)
 
-                if value.len() > 1_048_574 {
-                    let pos = value.floor_char_boundary(1_048_574);
-                    (&value[..pos]).to_sql(ty, out)
+                if value.len() > 650_000 {
+                    (&value[..value.floor_char_boundary(650_000)]).to_sql(ty, out)
                 } else {
                     value.to_sql(ty, out)
                 }
@@ -356,9 +355,8 @@ impl ToSql for SearchValue {
             SearchValue::Text { value, .. } => {
                 // Truncate large text fields to avoid Postgres errors (see https://www.postgresql.org/docs/current/textsearch-limitations.html)
 
-                if value.len() > 1_048_574 {
-                    let pos = value.floor_char_boundary(1_048_574);
-                    (&value[..pos]).to_sql_checked(ty, out)
+                if value.len() > 650_000 {
+                    (&value[..value.floor_char_boundary(650_000)]).to_sql_checked(ty, out)
                 } else {
                     value.to_sql_checked(ty, out)
                 }
