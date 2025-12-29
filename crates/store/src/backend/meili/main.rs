@@ -31,21 +31,31 @@ impl MeiliSearchStore {
             .property_or_default::<Duration>((&prefix, "task.poll-interval"), "500ms")
             .unwrap_or(Duration::from_millis(500));
         let task_poll_retries = config
-            .property_or_default::<usize>((&prefix, "task.poll-retries"), "60")
-            .unwrap_or(60);
+            .property_or_default::<usize>((&prefix, "task.poll-retries"), "120")
+            .unwrap_or(120);
+        let task_fail_on_timeout = config
+            .property_or_default::<bool>((&prefix, "task.fail-on-timeout"), "true")
+            .unwrap_or(true);
 
         let ms = Self {
             client,
             url,
-            task_poll_interval,
-            task_poll_retries,
+            task_poll_interval: Duration::from_millis(500),
+            task_poll_retries: 120,
+            task_fail_on_timeout: true,
         };
 
         if let Err(err) = ms.create_indexes().await {
             config.new_build_error(prefix.as_str(), err.to_string());
         }
 
-        Some(ms)
+        Some(Self {
+            client: ms.client,
+            url: ms.url,
+            task_poll_interval,
+            task_poll_retries,
+            task_fail_on_timeout,
+        })
     }
 
     pub async fn create_indexes(&self) -> trc::Result<()> {
@@ -58,19 +68,20 @@ impl MeiliSearchStore {
 
     async fn create_index<T: SearchableField>(&self) -> trc::Result<()> {
         let index_name = T::index().index_name();
-        let response = self
-            .client
-            .post(format!("{}/indexes", self.url))
-            .body(
-                json!({
-                    "uid": index_name,
-                    "primaryKey": "id",
-                })
-                .to_string(),
-            )
-            .send()
-            .await
-            .map_err(|err| trc::StoreEvent::MeilisearchError.reason(err))?;
+        let response = assert_success(
+            self.client
+                .post(format!("{}/indexes", self.url))
+                .body(
+                    json!({
+                        "uid": index_name,
+                        "primaryKey": "id",
+                    })
+                    .to_string(),
+                )
+                .send()
+                .await,
+        )
+        .await?;
 
         if !self.wait_for_task(response).await? {
             // Index already exists
@@ -245,9 +256,13 @@ impl MeiliSearchStore {
             }
         }
 
-        Err(trc::StoreEvent::MeilisearchError
-            .reason("Timed out waiting for Meilisearch task")
-            .id(task_uid))
+        if self.task_fail_on_timeout {
+            Err(trc::StoreEvent::MeilisearchError
+                .reason("Timed out waiting for Meilisearch task")
+                .id(task_uid))
+        } else {
+            Ok(true)
+        }
     }
 }
 

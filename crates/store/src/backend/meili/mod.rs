@@ -16,6 +16,7 @@ pub struct MeiliSearchStore {
     url: String,
     task_poll_interval: Duration,
     task_poll_retries: usize,
+    task_fail_on_timeout: bool,
 }
 
 #[derive(Debug, Deserialize)]

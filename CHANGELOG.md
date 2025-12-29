@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.15.3] - 2025-12-29
+
+If you are upgrading from v0.14.x and below, this version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
+If you are upgrading from v0.15.x, replace the binary and update the webadmin.
+
+## Added
+- Polish locale support (contributed by @mrxkp) (#2480)
+
+## Changed
+
+## Fixed
+- Meilisearch: Return correct error messages when failing to create indexes (#2574)
+- PostgreSQL search: Truncate emails to 650kb for full-text search indexing.
+- FoundationDB search: Batch large transactions (#2567).
+- Spam filter: Fix training sample size checks
+- IMAP: Fix UTF7 encoding with Emojis (contributed by @dojiong) (#2564).
+
 ## [0.15.2] - 2025-12-22
 
 If you are upgrading from v0.14.x and below, this version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
