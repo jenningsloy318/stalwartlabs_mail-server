@@ -468,27 +468,54 @@ impl<T: SessionStream> SessionData<T> {
                 }
                 Filter::Header(header, value) => {
                     if let Some(header) = HeaderName::parse(header) {
-                        let op = if matches!(
-                            header,
-                            HeaderName::MessageId
-                                | HeaderName::InReplyTo
-                                | HeaderName::References
-                                | HeaderName::ResentMessageId
-                        ) || value.is_empty()
-                        {
-                            SearchOperator::Equal
-                        } else {
-                            SearchOperator::Contains
-                        };
+                        match header {
+                            HeaderName::Subject => {
+                                filters.push(SearchFilter::has_text_detect(
+                                    EmailSearchField::Subject,
+                                    value,
+                                    self.server.core.jmap.default_language,
+                                ));
+                            }
+                            header @ (HeaderName::From
+                            | HeaderName::To
+                            | HeaderName::Cc
+                            | HeaderName::Bcc) => {
+                                filters.push(SearchFilter::has_text(
+                                    match header {
+                                        HeaderName::From => EmailSearchField::From,
+                                        HeaderName::To => EmailSearchField::To,
+                                        HeaderName::Cc => EmailSearchField::Cc,
+                                        HeaderName::Bcc => EmailSearchField::Bcc,
+                                        _ => unreachable!(),
+                                    },
+                                    value,
+                                    Language::None,
+                                ));
+                            }
+                            header => {
+                                let op = if matches!(
+                                    header,
+                                    HeaderName::MessageId
+                                        | HeaderName::InReplyTo
+                                        | HeaderName::References
+                                        | HeaderName::ResentMessageId
+                                ) || value.is_empty()
+                                {
+                                    SearchOperator::Equal
+                                } else {
+                                    SearchOperator::Contains
+                                };
 
-                        filters.push(SearchFilter::cond(
-                            EmailSearchField::Headers,
-                            op,
-                            SearchValue::KeyValues(
-                                VecMap::with_capacity(1)
-                                    .with_append(header.as_str().to_lowercase(), value),
-                            ),
-                        ));
+                                filters.push(SearchFilter::cond(
+                                    EmailSearchField::Headers,
+                                    op,
+                                    SearchValue::KeyValues(
+                                        VecMap::with_capacity(1)
+                                            .with_append(header.as_str().to_lowercase(), value),
+                                    ),
+                                ));
+                            }
+                        }
                     }
                 }
                 Filter::Subject(text) => {
