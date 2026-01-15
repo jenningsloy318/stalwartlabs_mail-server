@@ -10,8 +10,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use std::time::Instant;
-
 use crate::{
     core::{Session, SessionData},
     op::ImapContext,
@@ -28,6 +26,7 @@ use imap_proto::{
     },
     receiver::Request,
 };
+use std::time::Instant;
 
 impl<T: SessionStream> Session<T> {
     pub async fn handle_get_quota(&mut self, request: Request<Command>) -> trc::Result<()> {
@@ -128,11 +127,15 @@ impl<T: SessionStream> SessionData<T> {
             quota_root_items: vec![],
             quota_items: vec![QuotaItem {
                 name: arguments.name,
-                resources: vec![QuotaResource {
-                    resource: QuotaResourceName::Storage,
-                    total: access_token.quota,
-                    used: used_quota as u64,
-                }],
+                resources: if access_token.quota > 0 {
+                    vec![QuotaResource {
+                        resource: QuotaResourceName::Storage,
+                        total: access_token.quota,
+                        used: used_quota as u64,
+                    }]
+                } else {
+                    vec![]
+                },
             }],
         };
 
@@ -188,11 +191,15 @@ impl<T: SessionStream> SessionData<T> {
             quota_root_items: vec![arguments.name, format!("#{account_id}")],
             quota_items: vec![QuotaItem {
                 name: format!("#{account_id}"),
-                resources: vec![QuotaResource {
-                    resource: QuotaResourceName::Storage,
-                    total: access_token.quota,
-                    used: used_quota as u64,
-                }],
+                resources: if access_token.quota > 0 {
+                    vec![QuotaResource {
+                        resource: QuotaResourceName::Storage,
+                        total: access_token.quota,
+                        used: used_quota as u64,
+                    }]
+                } else {
+                    vec![]
+                },
             }],
         };
 

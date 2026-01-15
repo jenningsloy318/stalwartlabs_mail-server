@@ -20,14 +20,8 @@ use std::cmp::Ordering;
 impl SearchStore {
     pub async fn query_account(&self, query: SearchQuery) -> trc::Result<Vec<u32>> {
         // Pre-filter by mask
-        match query.mask.len().cmp(&1) {
-            Ordering::Equal => {
-                return Ok(vec![query.mask.min().unwrap()]);
-            }
-            Ordering::Less => {
-                return Ok(vec![]);
-            }
-            Ordering::Greater => {}
+        if query.mask.is_empty() {
+            return Ok(vec![]);
         }
 
         // If the store does not support FTS, use the internal FTS store

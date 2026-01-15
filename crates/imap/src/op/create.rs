@@ -228,7 +228,8 @@ impl<T: SessionStream> SessionData<T> {
             if account.mailbox_names.contains_key(&full_path) {
                 return Err(trc::ImapEvent::Error
                     .into_err()
-                    .details(format!("Mailbox '{}' already exists.", full_path)));
+                    .details(format!("Mailbox '{}' already exists.", full_path))
+                    .code(ResponseCode::AlreadyExists));
             }
 
             (
