@@ -16,7 +16,7 @@ use crate::{
 use common::{Server, auth::AccessToken, scripts::plugins::PluginContext};
 use directory::QueryParams;
 use mail_parser::MessageParser;
-use sieve::{Envelope, Event, Input, Mailbox, Recipient, Sieve};
+use sieve::{Envelope, Event, Input, Mailbox, Recipient, Sieve, SpamStatus};
 use std::{borrow::Cow, sync::Arc};
 use std::{future::Future, str::FromStr};
 use store::{
@@ -138,6 +138,11 @@ impl SieveScriptIngest for Server {
         // Set envelope
         instance.set_envelope(Envelope::From, envelope_from);
         instance.set_envelope(Envelope::To, envelope_to.address.as_str());
+        instance.set_spam_status(if envelope_to.is_spam {
+            SpamStatus::Spam
+        } else {
+            SpamStatus::Ham
+        });
 
         let mut input = Input::script(
             active_script.script_name.to_string(),
