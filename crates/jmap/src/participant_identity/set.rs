@@ -199,7 +199,7 @@ fn validate_identity_value(
     identity: &mut ParticipantIdentity,
     allowed_emails: &AHashSet<String>,
 ) -> Result<(), SetError<ParticipantIdentityProperty>> {
-    let mut changed_address = false;
+    let mut changed_address = None;
     for (property, value) in update.into_expanded_object() {
         let Key::Property(property) = property else {
             return Err(SetError::invalid_properties()
@@ -213,8 +213,7 @@ fn validate_identity_value(
             }
             (ParticipantIdentityProperty::CalendarAddress, Value::Str(value)) => {
                 if identity.calendar_address != value {
-                    changed_address = true;
-                    identity.calendar_address = value.into_owned();
+                    changed_address = Some(value);
                 }
             }
             (property, _) => {
@@ -226,31 +225,31 @@ fn validate_identity_value(
     }
     // Validate email address
     if !identity.calendar_address.is_empty() {
-        if !changed_address {
-            return Ok(());
-        }
+        if let Some(new_address) = changed_address {
+            let email = if let Some(email) = new_address.strip_prefix("mailto:") {
+                sanitize_email(email)
+            } else {
+                sanitize_email(&new_address)
+            };
 
-        let email = if let Some(email) = identity.calendar_address.strip_prefix("mailto:") {
-            sanitize_email(email)
-        } else {
-            sanitize_email(&identity.calendar_address)
-        };
-
-        if let Some(email) = email {
-            if allowed_emails.iter().any(|e| e == &email) {
-                identity.calendar_address = format!("mailto:{email}");
-                Ok(())
+            if let Some(email) = email {
+                if allowed_emails.iter().any(|e| e == &email) {
+                    identity.calendar_address = format!("mailto:{email}");
+                    Ok(())
+                } else {
+                    Err(SetError::invalid_properties()
+                        .with_property(ParticipantIdentityProperty::CalendarAddress)
+                        .with_description(
+                            "Calendar address not configured for this account.".to_string(),
+                        ))
+                }
             } else {
                 Err(SetError::invalid_properties()
                     .with_property(ParticipantIdentityProperty::CalendarAddress)
-                    .with_description(
-                        "Calendar address not configured for this account.".to_string(),
-                    ))
+                    .with_description("Invalid or missing calendar address.".to_string()))
             }
         } else {
-            Err(SetError::invalid_properties()
-                .with_property(ParticipantIdentityProperty::CalendarAddress)
-                .with_description("Invalid or missing calendar address.".to_string()))
+            Ok(())
         }
     } else {
         Err(SetError::invalid_properties()

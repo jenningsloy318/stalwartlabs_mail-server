@@ -186,11 +186,15 @@ impl AiApiConfig {
                 }
             }
         } else {
+            let status = response.status();
+            let bytes = response.bytes().await.unwrap_or_default();
+
             Err(format!(
-                "OpenAPI request to {} failed with code {}: {}",
+                "OpenAPI request to {} failed with code {} ({}): {}",
                 self.url,
-                response.status().as_u16(),
-                response.status().canonical_reason().unwrap_or("Unknown")
+                status.as_u16(),
+                status.canonical_reason().unwrap_or("Unknown"),
+                std::str::from_utf8(&bytes).unwrap_or_default()
             ))
         }
     }
