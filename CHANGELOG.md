@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.15.4] - 2026-01-19
+
+If you are upgrading from v0.14.x and below, this version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
+If you are upgrading from v0.15.x, replace the binary and update the webadmin.
+
+## Added
+- IMAP: Map `HEADER SUBJECT/FROM/TO` searches to `SUBJECT/FROM/TO` queries.
+- Sieve: Update spam status on user scripts.
+
+## Changed
+
+## Fixed
+- Search: Return all document ids when no filters are provided.
+- Search: Filters not applied when a single message is in the account.
+- IMAP: Return `ALREADYEXISTS` code when creating existing mailboxes.
+- IMAP: Do not return quota resources if no quota is set.
+- JMAP/changes: Update `newState` with last changeId if an invalid fromChangeId is provided.
+- JMAP/CalendarIdentity: Do not update invalid calendar identities.
+- AI API: Include request error details if available.
+
 ## [0.15.3] - 2025-12-29
 
 If you are upgrading from v0.14.x and below, this version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
