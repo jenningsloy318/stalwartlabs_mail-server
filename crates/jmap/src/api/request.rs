@@ -84,12 +84,12 @@ impl RequestHandler for Server {
         access_token: Arc<AccessToken>,
         session: &HttpSessionData,
     ) -> Response<'x> {
+        let add_created_ids = request.created_ids.is_some();
         let mut response = Response::new(
             access_token.state(),
             request.created_ids.unwrap_or_default(),
             request.method_calls.len(),
         );
-        let add_created_ids = !response.created_ids.is_empty();
 
         for mut call in request.method_calls {
             // Resolve result and id references

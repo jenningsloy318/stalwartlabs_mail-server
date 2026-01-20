@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::api::auth::JmapAuthorization;
+use crate::{api::auth::JmapAuthorization, changes::state::JmapCacheState};
 use common::{Server, auth::AccessToken};
+use email::cache::MessageCacheFetch;
+use groupware::cache::GroupwareCache;
 use jmap_proto::{
     method::changes::{ChangesRequest, ChangesResponse},
     object::{JmapObject, NullObject, mailbox::MailboxProperty},
@@ -15,6 +17,7 @@ use jmap_proto::{
 };
 use std::future::Future;
 use store::query::log::{Change, Query};
+use trc::AddContext;
 use types::collection::{Collection, SyncCollection};
 
 pub trait ChangesLookup: Sync + Send {
@@ -139,12 +142,41 @@ impl ChangesLookup for Server {
 
                 (0, changelog)
             }
-            State::Exact(change_id) => (
-                0,
-                self.store()
-                    .changes(account_id, collection.into(), Query::Since(*change_id))
-                    .await?,
-            ),
+            State::Exact(change_id) => {
+                let last_state = match collection {
+                    SyncCollection::Calendar | SyncCollection::AddressBook => self
+                        .fetch_dav_resources(access_token, account_id, collection)
+                        .await
+                        .caused_by(trc::location!())?
+                        .get_state(is_container)
+                        .into(),
+                    SyncCollection::Email => self
+                        .get_cached_messages(account_id)
+                        .await?
+                        .get_state(is_container)
+                        .into(),
+                    _ => None,
+                };
+
+                if let Some(last_state) = last_state {
+                    response.new_state = last_state;
+
+                    if response.new_state == State::Exact(*change_id) {
+                        return Ok(IntermediateChangesResponse {
+                            response,
+                            object,
+                            only_container_changes: false,
+                        });
+                    }
+                }
+
+                (
+                    0,
+                    self.store()
+                        .changes(account_id, collection.into(), Query::Since(*change_id))
+                        .await?,
+                )
+            }
             State::Intermediate(intermediate_state) => {
                 let changelog = self
                     .store()
@@ -175,10 +207,16 @@ impl ChangesLookup for Server {
             }
         };
 
-        if changelog.is_truncated && request.since_state != State::Initial {
-            return Err(trc::JmapEvent::CannotCalculateChanges
-                .into_err()
-                .details("Changelog has been truncated"));
+        if (changelog.is_truncated || changelog.from_change_id == 0)
+            && request.since_state != State::Initial
+        {
+            return Err(trc::JmapEvent::CannotCalculateChanges.into_err().details(
+                if changelog.is_truncated {
+                    "Change log is truncated"
+                } else {
+                    "Since state is invalid"
+                },
+            ));
         }
 
         let mut changes = changelog
@@ -218,15 +256,15 @@ impl ChangesLookup for Server {
         .unwrap_or(changelog.to_change_id);
 
         response.has_more_changes = changes.peek().is_some();
-        response.new_state = if response.has_more_changes {
-            State::new_intermediate(
+        if response.has_more_changes {
+            response.new_state = State::new_intermediate(
                 changelog.from_change_id,
                 change_id,
                 items_sent + max_changes,
-            )
-        } else {
-            State::new_exact(change_id)
-        };
+            );
+        } else if response.new_state == State::Initial {
+            response.new_state = State::new_exact(change_id)
+        }
 
         Ok(IntermediateChangesResponse {
             only_container_changes: is_container && !response.updated.is_empty() && !items_changed,

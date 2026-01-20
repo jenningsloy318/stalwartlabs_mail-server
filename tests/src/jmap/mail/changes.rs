@@ -198,7 +198,7 @@ pub async fn test(params: &mut JMAPTest) {
                 state
             );
 
-            if let State::Initial = state {
+            if &State::Initial == state {
                 new_state = State::parse_str(changes.new_state()).unwrap();
             }
 
@@ -312,6 +312,7 @@ pub async fn test(params: &mut JMAPTest) {
     assert_eq!(created, vec![2, 3, 11, 12]);
     assert_eq!(changes.updated(), Vec::<String>::new());
     assert_eq!(changes.destroyed(), Vec::<String>::new());
+    params.destroy_all_mailboxes(account).await;
     params.assert_is_empty().await;
 }
 

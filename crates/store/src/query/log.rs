@@ -120,21 +120,15 @@ impl Store {
                     } else {
                         changelog.changes.push(Change::InsertItem(change_id));
                     }
+                } else {
+                    changelog.from_change_id = change_id;
+                    changelog.to_change_id = change_id;
                 }
                 Ok(true)
             },
         )
         .await
         .caused_by(trc::location!())?;
-
-        // A non-existing change id was requested, return the last change id
-        if changelog.changes.is_empty() && from_change_id != 0 && changelog.from_change_id == 0 {
-            changelog.from_change_id = self
-                .get_last_change_id(account_id, collection_)
-                .await?
-                .unwrap_or_default();
-            changelog.to_change_id = changelog.from_change_id;
-        }
 
         Ok(changelog)
     }
