@@ -380,48 +380,63 @@ impl ReindexIndexTask for Server {
                 }
             }
             SearchIndex::Tracing => {
-                let mut spans = Vec::new();
-                self.store()
-                    .iterate(
-                        IterateParams::new(
-                            ValueKey::from(ValueClass::Telemetry(TelemetryClass::Span {
-                                span_id: 0,
-                            })),
-                            ValueKey::from(ValueClass::Telemetry(TelemetryClass::Span {
-                                span_id: u64::MAX,
-                            })),
-                        )
-                        .no_values(),
-                        |key, _| {
-                            spans.push(key.deserialize_be_u64(0)?);
-                            Ok(true)
-                        },
-                    )
-                    .await
-                    .caused_by(trc::location!())?;
+                // SPDX-SnippetBegin
+                // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+                // SPDX-License-Identifier: LicenseRef-SEL
 
-                let mut batch = BatchBuilder::new();
-                for span_id in spans {
-                    batch
-                        .with_account_id((span_id >> 32) as u32) // TODO: This is hacky, improve
-                        .with_document(span_id as u32)
-                        .set(
-                            ValueClass::TaskQueue(TaskQueueClass::UpdateIndex {
-                                due: TaskEpoch::now(),
-                                index: SearchIndex::Tracing,
-                                is_insert: true,
-                            }),
-                            vec![],
-                        );
-                    if batch.len() >= 2000 {
+                #[cfg(feature = "enterprise")]
+                if let Some(store) = self
+                    .core
+                    .enterprise
+                    .as_ref()
+                    .and_then(|e| e.trace_store.as_ref())
+                {
+                    let mut spans = Vec::new();
+                    store
+                        .store
+                        .iterate(
+                            IterateParams::new(
+                                ValueKey::from(ValueClass::Telemetry(TelemetryClass::Span {
+                                    span_id: 0,
+                                })),
+                                ValueKey::from(ValueClass::Telemetry(TelemetryClass::Span {
+                                    span_id: u64::MAX,
+                                })),
+                            )
+                            .no_values(),
+                            |key, _| {
+                                spans.push(key.deserialize_be_u64(0)?);
+                                Ok(true)
+                            },
+                        )
+                        .await
+                        .caused_by(trc::location!())?;
+
+                    let mut batch = BatchBuilder::new();
+                    for span_id in spans {
+                        batch
+                            .with_account_id((span_id >> 32) as u32) // TODO: This is hacky, improve
+                            .with_document(span_id as u32)
+                            .set(
+                                ValueClass::TaskQueue(TaskQueueClass::UpdateIndex {
+                                    due: TaskEpoch::now(),
+                                    index: SearchIndex::Tracing,
+                                    is_insert: true,
+                                }),
+                                vec![],
+                            );
+                        if batch.len() >= 2000 {
+                            self.core.storage.data.write(batch.build_all()).await?;
+                            batch = BatchBuilder::new();
+                        }
+                    }
+
+                    if !batch.is_empty() {
                         self.core.storage.data.write(batch.build_all()).await?;
-                        batch = BatchBuilder::new();
                     }
                 }
 
-                if !batch.is_empty() {
-                    self.core.storage.data.write(batch.build_all()).await?;
-                }
+                // SPDX-SnippetEnd
             }
             SearchIndex::File | SearchIndex::InMemory => (),
         }
@@ -561,9 +576,17 @@ async fn build_tracing_span_document(
     let Some(index_fields) = server.core.jmap.index_fields.get(&SearchIndex::Tracing) else {
         return Ok(None);
     };
+    let Some(store) = server
+        .core
+        .enterprise
+        .as_ref()
+        .and_then(|e| e.trace_store.as_ref())
+    else {
+        return Ok(None);
+    };
 
     let span_id = ((account_id as u64) << 32) | document_id as u64;
-    let span = server.store().get_span(span_id).await?;
+    let span = store.store.get_span(span_id).await?;
 
     if !span.is_empty() {
         Ok(Some(build_span_document(span_id, span, index_fields)))
