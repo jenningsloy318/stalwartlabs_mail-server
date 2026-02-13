@@ -362,7 +362,20 @@ impl SpamClassifier for Server {
                 };
 
                 // Build features
-                let message = MessageParser::new().parse(&raw_message).unwrap_or_default();
+                let Some(message) = MessageParser::new().parse(&raw_message) else {
+                    if sample.is_replay {
+                        trainer
+                            .reservoir
+                            .remove_sample(&sample.sample, sample.is_spam);
+                    }
+                    trc::event!(
+                        Spam(SpamEvent::TrainSampleNotFound),
+                        Reason = "Failed to parse message",
+                        AccountId = account_id,
+                        BlobId = sample.sample.hash.to_hex(),
+                    );
+                    continue;
+                };
                 let mut ctx =
                     self.spam_filter_init(SpamFilterInput::from_message(&message, 0).train_mode());
                 self.spam_filter_analyze_domain(&mut ctx).await;
