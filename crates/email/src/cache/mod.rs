@@ -125,6 +125,7 @@ impl MessageCacheFetch for Server {
         let mut changed_items: AHashMap<u32, bool> = AHashMap::with_capacity(changes.changes.len());
         let mut changed_containers: AHashMap<u32, bool> =
             AHashMap::with_capacity(changes.changes.len());
+        let mut has_container_property_changes = false;
 
         for change in changes.changes {
             match change {
@@ -156,7 +157,9 @@ impl MessageCacheFetch for Server {
                 Change::DeleteContainer(id) => {
                     changed_containers.insert(id as u32, false);
                 }
-                Change::UpdateContainerProperty(_) => (),
+                Change::UpdateContainerProperty(_) => {
+                    has_container_property_changes = true;
+                }
             }
         }
 
@@ -170,6 +173,10 @@ impl MessageCacheFetch for Server {
         if !changed_containers.is_empty() {
             let mut mailbox_cache =
                 update_mailbox_cache(self, account_id, &changed_containers, &cache).await?;
+            mailbox_cache.change_id = changes.container_change_id.unwrap_or(changes.to_change_id);
+            cache.mailboxes = Arc::new(mailbox_cache);
+        } else if has_container_property_changes {
+            let mut mailbox_cache = cache.mailboxes.as_ref().clone();
             mailbox_cache.change_id = changes.container_change_id.unwrap_or(changes.to_change_id);
             cache.mailboxes = Arc::new(mailbox_cache);
         }

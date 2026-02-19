@@ -155,12 +155,6 @@ Of course, development doesn’t stop there. The community has contributed hundr
 
 Your support is crucial in helping us continue to improve the project, add new features, and maintain the highest level of quality. By [becoming a sponsor](https://opencollective.com/stalwart), you help fund the development and future of Stalwart. As a thank-you, sponsors who contribute $5 per month or more will automatically receive a [Enterprise edition](https://stalw.art/enterprise/) license. And, sponsors who contribute $30 per month or more, also have access to [Premium Support](https://stalw.art/support) from Stalwart Labs.
 
-These are some of our open-source sponsors:
-
-<!-- sponsors --><a href="https://github.com/kbjr"><img src="https:&#x2F;&#x2F;github.com&#x2F;kbjr.png" width="60px" alt="User avatar: James Brumond" /></a><a href="https://github.com/MailRoute"><img src="https:&#x2F;&#x2F;github.com&#x2F;MailRoute.png" width="60px" alt="User avatar: MailRoute, Inc." /></a><a href="https://github.com/starsong-consulting"><img src="https:&#x2F;&#x2F;github.com&#x2F;starsong-consulting.png" width="60px" alt="User avatar: Starsong GmbH" /></a><a href="https://github.com/mingfu-design"><img src="https:&#x2F;&#x2F;github.com&#x2F;mingfu-design.png" width="60px" alt="User avatar: Ming Fu Design Ltd. 明孚設計有限公司" /></a><a href="https://github.com/tamwuff"><img src="https:&#x2F;&#x2F;github.com&#x2F;tamwuff.png" width="60px" alt="User avatar: Tamino" /></a><a href="https://github.com/panascais"><img src="https:&#x2F;&#x2F;github.com&#x2F;panascais.png" width="60px" alt="User avatar: panascais" /></a><a href="https://github.com/JanAxelJonsson"><img src="https:&#x2F;&#x2F;github.com&#x2F;JanAxelJonsson.png" width="60px" alt="User avatar: Jan Jonsson" /></a><!-- sponsors -->
-
-<br/>If you would like to support our work, please consider [becoming a sponsor](https://opencollective.com/stalwart).
-
 ## Funding
 
 Part of the development of this project was funded through:

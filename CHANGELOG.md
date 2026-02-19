@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.15.5] - 2026-02-14
+
+If you are upgrading from v0.14.x and below, this version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.
+If you are upgrading from v0.15.x, replace the binary and update the webadmin.
+
+## Added
+
+## Changed
+
+## Fixed
+- IMAP/JMAP: OOM when `mail-parser` returns cyclical MIME structures [CVE-2026-26312](https://github.com/stalwartlabs/stalwart/security/advisories/GHSA-jm95-876q-c9gw).
+- Tracing: Fix tracing indexing when using separate stores.
+- JMAP: Fix `upToId` computation in `*/queryChanges`.
+- JMAP: Include createdIds when the property is present.
+- JMAP: Respect query arguments in `Email/queryChanges`.
+- JMAP: Return the correct container/item change id when there are no changes.
+
 ## [0.15.4] - 2026-01-19
 
 If you are upgrading from v0.14.x and below, this version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.

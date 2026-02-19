@@ -865,6 +865,10 @@ impl AsImapDataItem for ArchivedMessageMetadata {
                         let nested_message = self.message_id(*nested_message_id);
                         part.set_envelope(nested_message.envelope());
                         if let Some(root_part) = root_part {
+                            if stack.len() == 10_000 {
+                                debug_assert!(false, "Too much nesting in message metadata");
+                                return root_part;
+                            }
                             stack.push((root_part, parts, (message, message_id).into()));
                         }
                         root_part = part.into();
@@ -875,6 +879,10 @@ impl AsImapDataItem for ArchivedMessageMetadata {
                     }
                     ArchivedMetadataPartType::Multipart(subparts) => {
                         if let Some(root_part) = root_part {
+                            if stack.len() == 10_000 {
+                                debug_assert!(false, "Too much nesting in message metadata");
+                                return root_part;
+                            }
                             stack.push((root_part, parts, None));
                         }
                         root_part = part.into();

@@ -803,7 +803,13 @@ impl Purge for Server {
                 // SPDX-License-Identifier: LicenseRef-SEL
                 #[cfg(feature = "enterprise")]
                 if let Some(trace_retention) = trace_retention
-                    && let Err(err) = store
+                    && let Some(trace_store) = self
+                        .core
+                        .enterprise
+                        .as_ref()
+                        .and_then(|e| e.trace_store.as_ref())
+                    && let Err(err) = trace_store
+                        .store
                         .purge_spans(trace_retention, self.search_store().into())
                         .await
                 {
@@ -812,7 +818,12 @@ impl Purge for Server {
 
                 #[cfg(feature = "enterprise")]
                 if let Some(metrics_retention) = metrics_retention
-                    && let Err(err) = store.purge_metrics(metrics_retention).await
+                    && let Some(metrics_store) = self
+                        .core
+                        .enterprise
+                        .as_ref()
+                        .and_then(|e| e.metrics_store.as_ref())
+                    && let Err(err) = metrics_store.store.purge_metrics(metrics_retention).await
                 {
                     trc::error!(err.details("Failed to purge metrics"));
                 }

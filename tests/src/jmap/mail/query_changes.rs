@@ -117,9 +117,7 @@ pub async fn test(params: &mut JMAPTest) {
                 if change_num % 2 == 0 {
                     type1_ids.insert(jmap_id);
                 }
-                thread_id_map
-                    .entry(jmap_id.prefix_id())
-                    .or_insert(jmap_id);
+                thread_id_map.entry(jmap_id.prefix_id()).or_insert(jmap_id);
             }
             LogAction::Update(id) => {
                 let id = *id_map.get(id).unwrap();
@@ -290,7 +288,7 @@ pub async fn test(params: &mut JMAPTest) {
                     for item in changes.added() {
                         let item_id = Id::from_str(item.id()).unwrap();
                         let id = id_map.iter().find(|(_, v)| **v == item_id).unwrap().0;
-                        assert!(id < &7, "{:?} (id: {})", changes, id);
+                        assert!(id <= &7, "{:?} (id: {})", changes, id);
                     }
                 }
                 if test_num == 4 {
