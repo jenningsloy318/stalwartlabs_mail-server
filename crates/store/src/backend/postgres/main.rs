@@ -42,7 +42,7 @@ impl PostgresStore {
             .unwrap_or_default();
         cfg.options = config.value((&prefix, "options")).map(|s| s.to_string());
         cfg.manager = Some(ManagerConfig {
-            recycling_method: RecyclingMethod::Fast,
+            recycling_method: RecyclingMethod::Clean,
         });
         if let Some(max_conn) = config.property::<usize>((&prefix, "pool.max-connections")) {
             cfg.pool = PoolConfig::new(max_conn).into();
