@@ -605,7 +605,18 @@ impl LockRequestHandler for Server {
             return lock_response;
         }
 
-        Err(DavError::Code(StatusCode::PRECONDITION_FAILED))
+        Err(DavError::Code(
+            if matches!(method, DavMethod::GET | DavMethod::HEAD)
+                && headers
+                    .if_
+                    .iter()
+                    .any(|if_| if_.list.iter().any(|cond| cond.is_none_match()))
+            {
+                StatusCode::NOT_MODIFIED
+            } else {
+                StatusCode::PRECONDITION_FAILED
+            },
+        ))
     }
 }
 
