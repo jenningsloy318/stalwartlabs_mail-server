@@ -4,26 +4,28 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use std::future::Future;
-
+use super::ErrorType;
+use crate::auth::authenticate::Authenticator;
 use common::{
     Server,
-    auth::oauth::registration::{ClientRegistrationRequest, ClientRegistrationResponse},
-};
-
-use directory::{
-    Permission, QueryParams, Type,
-    backend::internal::{
-        PrincipalField, PrincipalSet, lookup::DirectoryStore, manage::ManageDirectory,
+    auth::{
+        BuildAccessToken,
+        oauth::registration::{ClientRegistrationRequest, ClientRegistrationResponse},
     },
 };
-use store::rand::{Rng, distr::Alphanumeric, rng};
-use trc::{AddContext, AuthEvent};
-
-use crate::auth::authenticate::Authenticator;
 use http_proto::{request::fetch_body, *};
-
-use super::ErrorType;
+use registry::schema::{
+    enums::Permission,
+    prelude::{ObjectType, Property},
+    structs::OAuthClient,
+};
+use std::future::Future;
+use store::{
+    rand::{Rng, distr::Alphanumeric, rng},
+    registry::write::{RegistryWrite, RegistryWriteResult},
+};
+use trc::{AddContext, AuthEvent};
+use types::id::Id;
 
 pub trait ClientRegistrationHandler: Sync + Send {
     fn handle_oauth_registration_request(
@@ -45,16 +47,18 @@ impl ClientRegistrationHandler for Server {
         req: &mut HttpRequest,
         session: HttpSessionData,
     ) -> trc::Result<HttpResponse> {
-        if !self.core.oauth.allow_anonymous_client_registration {
+        let tenant_id = if !self.core.oauth.allow_anonymous_client_registration {
             // Authenticate request
-            let (_, access_token) = self.authenticate_headers(req, &session, true).await?;
+            let (_, access_token) = self.authenticate_headers(req, &session).await?;
 
             // Validate permissions
-            access_token.assert_has_permission(Permission::OauthClientRegistration)?;
+            access_token.enforce_permission(Permission::OAuthClientRegistration)?;
+            access_token.tenant_id()
         } else {
-            self.is_http_anonymous_request_allowed(&session.remote_ip)
+            self.is_http_anonymous_request_allowed(session.remote_ip)
                 .await?;
-        }
+            None
+        };
 
         // Parse request
         let body = fetch_body(req, 20 * 1024, session.session_id).await;
@@ -71,19 +75,31 @@ impl ClientRegistrationHandler for Server {
             .take(20)
             .map(|ch| char::from(ch.to_ascii_lowercase()))
             .collect::<String>();
-        self.store()
-            .create_principal(
-                PrincipalSet::new(u32::MAX, Type::OauthClient)
-                    .with_field(PrincipalField::Name, client_id.clone())
-                    .with_field(PrincipalField::Urls, request.redirect_uris.clone())
-                    .with_opt_field(PrincipalField::Description, request.client_name.clone())
-                    .with_field(PrincipalField::Emails, request.contacts.clone())
-                    .with_opt_field(PrincipalField::Picture, request.logo_uri.clone()),
-                None,
-                None,
-            )
+
+        let result = self
+            .registry()
+            .write(RegistryWrite::insert(
+                &OAuthClient {
+                    client_id: client_id.clone(),
+                    description: request.client_name.clone(),
+                    contacts: request.contacts.clone().into(),
+                    member_tenant_id: tenant_id.map(|id| Id::new(id as u64)),
+                    redirect_uris: request.redirect_uris.clone().into(),
+                    logo: request.logo_uri.clone(),
+                    ..Default::default()
+                }
+                .into(),
+            ))
             .await
             .caused_by(trc::location!())?;
+
+        if !matches!(result, RegistryWriteResult::Success(_)) {
+            return Err(trc::StoreEvent::UnexpectedError
+                .into_err()
+                .details("Failed to register OAuth client.")
+                .reason(result.to_string())
+                .caused_by(trc::location!()));
+        }
 
         trc::event!(
             Auth(AuthEvent::ClientRegistration),
@@ -111,15 +127,28 @@ impl ClientRegistrationHandler for Server {
         }
 
         // Fetch client registration
-        let found_registration = if let Some(client) = self
-            .store()
-            .query(QueryParams::name(client_id).with_return_member_of(false))
-            .await
-            .caused_by(trc::location!())?
-            .filter(|p| p.typ() == Type::OauthClient)
+        let found_registration = if let Some(client_id) = self
+            .registry()
+            .primary_key(
+                ObjectType::OAuthClient.into(),
+                Property::ClientId,
+                client_id.as_bytes().to_vec(),
+            )
+            .await?
         {
             if let Some(redirect_uri) = redirect_uri {
-                if client.urls().any(|uri| uri == redirect_uri) {
+                let client = self
+                    .registry()
+                    .object::<OAuthClient>(client_id.id())
+                    .await?
+                    .ok_or_else(|| {
+                        trc::StoreEvent::UnexpectedError
+                            .into_err()
+                            .details("OAuth client not found.")
+                            .caused_by(trc::location!())
+                            .ctx(trc::Key::Id, client_id.id().id())
+                    })?;
+                if client.redirect_uris.iter().any(|uri| uri == redirect_uri) {
                     return Ok(None);
                 }
             } else {
@@ -135,10 +164,11 @@ impl ClientRegistrationHandler for Server {
 
         // Check if the account is allowed to override client registration
         if self
-            .get_access_token(account_id)
+            .access_token(account_id)
             .await
             .caused_by(trc::location!())?
-            .has_permission(Permission::OauthClientOverride)
+            .build()
+            .has_permission(Permission::OAuthClientOverride)
         {
             return Ok(None);
         }

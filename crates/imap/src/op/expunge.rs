@@ -7,8 +7,7 @@
 use super::{ImapContext, ToModSeq};
 use crate::core::{ImapId, SavedSearch, SelectedMailbox, Session, SessionData};
 use ahash::AHashMap;
-use common::{listener::SessionStream, storage::index::ObjectIndexBuilder};
-use directory::Permission;
+use common::{network::SessionStream, storage::index::ObjectIndexBuilder};
 use email::{
     cache::{MessageCacheFetch, email::MessageCacheAccess},
     message::metadata::MessageData,
@@ -18,12 +17,12 @@ use imap_proto::{
     parser::parse_sequence_set,
     receiver::{Request, Token},
 };
-use std::{sync::Arc, time::Instant};
-use store::{
-    SerializeInfallible,
-    roaring::RoaringBitmap,
-    write::{BatchBuilder, SearchIndex, TaskEpoch, TaskQueueClass, ValueClass},
+use registry::schema::{
+    enums::{IndexDocumentType, Permission},
+    structs::{Task, TaskIndexDocument, TaskStatus},
 };
+use std::{sync::Arc, time::Instant};
+use store::{roaring::RoaringBitmap, write::BatchBuilder};
 use trc::AddContext;
 use types::{
     acl::Acl,
@@ -194,18 +193,16 @@ impl<T: SessionStream> SessionData<T> {
                             batch
                                 .custom(
                                     ObjectIndexBuilder::<_, ()>::new()
-                                        .with_access_token(&self.access_token)
+                                        .with_changed_by(self.access_token.account_tenant_ids())
                                         .with_current(metadata),
                                 )
                                 .caused_by(trc::location!())?
-                                .set(
-                                    ValueClass::TaskQueue(TaskQueueClass::UpdateIndex {
-                                        index: SearchIndex::Email,
-                                        due: TaskEpoch::now(),
-                                        is_insert: false,
-                                    }),
-                                    0u64.serialize(),
-                                )
+                                .schedule_task(Task::UnindexDocument(TaskIndexDocument {
+                                    account_id: account_id.into(),
+                                    document_id: document_id.into(),
+                                    document_type: IndexDocumentType::Email,
+                                    status: TaskStatus::now(),
+                                }))
                                 .commit_point();
                         } else {
                             // Untag message from this mailbox and remove Deleted flag

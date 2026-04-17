@@ -4,15 +4,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
+pub mod api;
 pub mod auth;
-pub mod autoconfig;
 pub mod form;
-pub mod management;
 pub mod request;
 
-use std::sync::Arc;
-
 use common::Inner;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct HttpSessionManager {

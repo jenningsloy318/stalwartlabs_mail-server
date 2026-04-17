@@ -6,15 +6,21 @@
 
 use crate::api::query::QueryResponseBuilder;
 use common::{Server, auth::AccessToken};
-use directory::{Permission, QueryParams, Type, backend::internal::manage::ManageDirectory};
-use http_proto::HttpSessionData;
 use jmap_proto::{
     method::query::{Filter, QueryRequest, QueryResponse},
     object::principal::{Principal, PrincipalFilter, PrincipalType},
     types::state::State,
 };
+use registry::{
+    schema::{
+        enums::AccountType,
+        prelude::{ObjectType, Permission, Property},
+    },
+    types::EnumImpl,
+};
 use std::future::Future;
 use store::{
+    registry::RegistryQuery,
     roaring::RoaringBitmap,
     search::{SearchFilter, SearchQuery},
     write::SearchIndex,
@@ -26,7 +32,6 @@ pub trait PrincipalQuery: Sync + Send {
         &self,
         request: QueryRequest<Principal>,
         access_token: &AccessToken,
-        session: &HttpSessionData,
     ) -> impl Future<Output = trc::Result<QueryResponse>> + Send;
 }
 
@@ -35,10 +40,9 @@ impl PrincipalQuery for Server {
         &self,
         mut request: QueryRequest<Principal>,
         access_token: &AccessToken,
-        session: &HttpSessionData,
     ) -> trc::Result<QueryResponse> {
         if !self.core.groupware.allow_directory_query
-            && !access_token.has_permission(Permission::IndividualList)
+            && !access_token.has_permission(Permission::SysAccountQuery)
         {
             return Err(trc::JmapEvent::Forbidden
                 .into_err()
@@ -46,51 +50,21 @@ impl PrincipalQuery for Server {
         }
 
         let principal_ids = self
-            .store()
-            .list_principals(
-                None,
-                access_token.tenant_id(),
-                &[
-                    Type::Individual,
-                    Type::Group,
-                    Type::Resource,
-                    Type::Location,
-                ],
-                false,
-                0,
-                0,
+            .registry()
+            .query::<RoaringBitmap>(
+                RegistryQuery::new(ObjectType::Account).with_tenant(access_token.tenant_id()),
             )
             .await
-            .caused_by(trc::location!())?
-            .items
-            .into_iter()
-            .map(|p| p.id())
-            .collect::<RoaringBitmap>();
+            .caused_by(trc::location!())?;
 
         let mut filters = Vec::with_capacity(request.filter.len());
         for cond in std::mem::take(&mut request.filter) {
             match cond {
                 Filter::Property(cond) => match cond {
-                    PrincipalFilter::Name(name) => {
-                        if let Some(principal) = self
-                            .core
-                            .storage
-                            .directory
-                            .query(QueryParams::name(name.as_str()).with_return_member_of(false))
-                            .await?
-                        {
+                    PrincipalFilter::Name(name) | PrincipalFilter::Email(name) => {
+                        if let Some(account_id) = self.account_id_from_email(&name, false).await? {
                             filters.push(SearchFilter::is_in_set(
-                                RoaringBitmap::from_sorted_iter([principal.id()]).unwrap(),
-                            ));
-                        }
-                    }
-                    PrincipalFilter::Email(email) => {
-                        if let Some(id) = self
-                            .email_to_id(self.directory(), &email, session.session_id)
-                            .await?
-                        {
-                            filters.push(SearchFilter::is_in_set(
-                                RoaringBitmap::from_sorted_iter([id]).unwrap(),
+                                RoaringBitmap::from_sorted_iter([account_id]).unwrap(),
                             ));
                         }
                     }
@@ -110,46 +84,35 @@ impl PrincipalQuery for Server {
                     }
                     PrincipalFilter::Text(text) => {
                         filters.push(SearchFilter::is_in_set(
-                            self.store()
-                                .list_principals(
-                                    Some(text.as_str()),
-                                    access_token.tenant.map(|t| t.id),
-                                    &[],
-                                    false,
-                                    0,
-                                    0,
+                            self.registry()
+                                .query::<RoaringBitmap>(
+                                    RegistryQuery::new(ObjectType::Account)
+                                        .with_tenant(access_token.tenant_id())
+                                        .text(Property::Text, text),
                                 )
-                                .await?
-                                .items
-                                .into_iter()
-                                .map(|p| p.id())
-                                .collect::<RoaringBitmap>(),
+                                .await
+                                .caused_by(trc::location!())?,
                         ));
                     }
                     PrincipalFilter::Type(principal_type) => {
                         let typ = match principal_type {
-                            PrincipalType::Individual => Type::Individual,
-                            PrincipalType::Group => Type::Group,
-                            PrincipalType::Resource => Type::Resource,
-                            PrincipalType::Location => Type::Location,
-                            PrincipalType::Other => Type::Other,
+                            PrincipalType::Individual => AccountType::User,
+                            PrincipalType::Group => AccountType::Group,
+                            _ => {
+                                filters.push(SearchFilter::is_in_set(Default::default()));
+                                continue;
+                            }
                         };
 
                         filters.push(SearchFilter::is_in_set(
-                            self.store()
-                                .list_principals(
-                                    None,
-                                    access_token.tenant.map(|t| t.id),
-                                    &[typ],
-                                    false,
-                                    0,
-                                    0,
+                            self.registry()
+                                .query::<RoaringBitmap>(
+                                    RegistryQuery::new(ObjectType::Account)
+                                        .equal(Property::Type, typ.to_id())
+                                        .with_tenant(access_token.tenant_id()),
                                 )
-                                .await?
-                                .items
-                                .into_iter()
-                                .map(|p| p.id())
-                                .collect::<RoaringBitmap>(),
+                                .await
+                                .caused_by(trc::location!())?,
                         ));
                     }
                     other => {

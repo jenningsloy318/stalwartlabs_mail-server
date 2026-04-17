@@ -6,9 +6,8 @@
 
 use super::{CLIENT_ID_MAX_LEN, GrantType, RANDOM_CODE_LEN, crypto::SymmetricEncrypt};
 use crate::Server;
-use directory::{PrincipalData, QueryParams};
-use mail_builder::encoders::base64::base64_encode;
-use mail_parser::decoders::base64::base64_decode;
+use base64::{Engine, engine::general_purpose};
+use registry::schema::structs::Account;
 use std::time::SystemTime;
 use store::{
     blake3,
@@ -102,7 +101,7 @@ impl Server {
         token.push_leb128(expiry);
         token.extend_from_slice(client_id.as_bytes());
 
-        Ok(String::from_utf8(base64_encode(&token).unwrap_or_default()).unwrap())
+        Ok(general_purpose::URL_SAFE_NO_PAD.encode(&token))
     }
 
     pub async fn validate_access_token(
@@ -111,13 +110,15 @@ impl Server {
         token_: &str,
     ) -> trc::Result<TokenInfo> {
         // Base64 decode token
-        let token = base64_decode(token_.as_bytes()).ok_or_else(|| {
-            trc::AuthEvent::Error
-                .into_err()
-                .ctx(trc::Key::Reason, "Failed to decode token")
-                .caused_by(trc::location!())
-                .details(token_.to_string())
-        })?;
+        let token = general_purpose::URL_SAFE_NO_PAD
+            .decode(token_.as_bytes())
+            .map_err(|_| {
+                trc::AuthEvent::Error
+                    .into_err()
+                    .ctx(trc::Key::Reason, "Failed to decode token")
+                    .caused_by(trc::location!())
+                    .details(token_.to_string())
+            })?;
         let (account_id, grant_type, issued_at, expiry, client_id) = token
             .get((RANDOM_CODE_LEN + SymmetricEncrypt::ENCRYPT_TAG_LEN)..)
             .and_then(|bytes| {
@@ -217,34 +218,21 @@ impl Server {
 
     pub async fn password_hash(&self, account_id: u32) -> trc::Result<String> {
         if account_id != u32::MAX {
-            self.core
-                .storage
-                .directory
-                .query(QueryParams::id(account_id).with_return_member_of(false))
+            self.registry()
+                .object::<Account>(account_id.into())
                 .await
                 .caused_by(trc::location!())?
+                .and_then(|account| {
+                    account
+                        .into_user()
+                        .and_then(|account| account.into_password())
+                })
                 .ok_or_else(|| {
                     trc::AuthEvent::Error
                         .into_err()
                         .details("Account no longer exists")
-                })?
-                .data
-                .into_iter()
-                .filter_map(|v| {
-                    if let PrincipalData::Password(secret) = v {
-                        Some(secret)
-                    } else {
-                        None
-                    }
                 })
-                .next()
-                .ok_or(
-                    trc::AuthEvent::Error
-                        .into_err()
-                        .details("Account does not contain secrets")
-                        .caused_by(trc::location!()),
-                )
-        } else if let Some((_, secret)) = &self.core.jmap.fallback_admin {
+        } else if let Some((_, secret)) = self.registry().recovery_admin() {
             Ok(secret.into())
         } else {
             Err(trc::AuthEvent::Error

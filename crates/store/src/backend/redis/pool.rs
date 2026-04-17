@@ -17,7 +17,7 @@ impl managed::Manager for RedisConnectionManager {
     type Error = trc::Error;
 
     async fn create(&self) -> Result<MultiplexedConnection, trc::Error> {
-        match tokio::time::timeout(self.timeout, self.client.get_multiplexed_tokio_connection())
+        match tokio::time::timeout(self.timeout, self.client.get_multiplexed_async_connection())
             .await
         {
             Ok(conn) => conn.map_err(into_error),

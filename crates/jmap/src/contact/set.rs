@@ -6,7 +6,10 @@
 
 use crate::contact::assert_is_unique_uid;
 use calcard::jscontact::{JSContact, JSContactProperty, JSContactValue};
-use common::{DavName, DavResources, Server, auth::AccessToken};
+use common::{
+    DavName, DavResources, Server,
+    auth::{AccessToken, AccountCache},
+};
 use groupware::{DestroyArchive, cache::GroupwareCache, contact::ContactCard};
 use http_proto::HttpSessionData;
 use jmap_proto::{
@@ -45,6 +48,7 @@ pub trait ContactCardSet: Sync + Send {
         cache: &DavResources,
         batch: &mut BatchBuilder,
         access_token: &AccessToken,
+        account: &AccountCache,
         account_id: u32,
         can_add_address_books: &Option<RoaringBitmap>,
         js_contact: JSContact<'_, Id, BlobId>,
@@ -60,8 +64,13 @@ impl ContactCardSet for Server {
         _session: &HttpSessionData,
     ) -> trc::Result<SetResponse<contact::ContactCard>> {
         let account_id = request.account_id.document_id();
+        let account = self.account(account_id).await.caused_by(trc::location!())?;
         let cache = self
-            .fetch_dav_resources(access_token, account_id, SyncCollection::AddressBook)
+            .fetch_dav_resources(
+                access_token.account_id(),
+                account_id,
+                SyncCollection::AddressBook,
+            )
             .await?;
         let mut response = SetResponse::from_request(&request, self.core.jmap.set_max_objects)?;
         let will_destroy = request.unwrap_destroy().into_valid().collect::<Vec<_>>();
@@ -92,6 +101,7 @@ impl ContactCardSet for Server {
                     &cache,
                     &mut batch,
                     access_token,
+                    &account,
                     account_id,
                     &can_add_address_books,
                     JSContact::default(),
@@ -252,13 +262,7 @@ impl ContactCardSet for Server {
             let extra_bytes = (new_contact_card.size as u64)
                 .saturating_sub(u32::from(contact_card.inner.size) as u64);
             if extra_bytes > 0 {
-                match self
-                    .has_available_quota(
-                        &self.get_resource_token(access_token, account_id).await?,
-                        extra_bytes,
-                    )
-                    .await
-                {
+                match self.has_available_quota(&account, extra_bytes).await {
                     Ok(_) => {}
                     Err(err) if err.matches(trc::EventType::Limit(trc::LimitEvent::Quota)) => {
                         response.not_updated.append(id, SetError::over_quota());
@@ -271,7 +275,7 @@ impl ContactCardSet for Server {
             // Update record
             new_contact_card
                 .update(
-                    access_token,
+                    access_token.account_tenant_ids(),
                     contact_card,
                     account_id,
                     document_id,
@@ -327,7 +331,12 @@ impl ContactCardSet for Server {
 
             // Delete record
             DestroyArchive(contact_card)
-                .delete_all(access_token, account_id, document_id, &mut batch)
+                .delete_all(
+                    access_token.account_tenant_ids(),
+                    account_id,
+                    document_id,
+                    &mut batch,
+                )
                 .caused_by(trc::location!())?;
 
             response.destroyed.push(id);
@@ -354,6 +363,7 @@ impl ContactCardSet for Server {
         cache: &DavResources,
         batch: &mut BatchBuilder,
         access_token: &AccessToken,
+        account: &AccountCache,
         account_id: u32,
         can_add_address_books: &Option<RoaringBitmap>,
         mut js_contact: JSContact<'_, Id, BlobId>,
@@ -406,13 +416,7 @@ impl ContactCardSet for Server {
                 ),
             )));
         }
-        match self
-            .has_available_quota(
-                &self.get_resource_token(access_token, account_id).await?,
-                size as u64,
-            )
-            .await
-        {
+        match self.has_available_quota(account, size as u64).await {
             Ok(_) => {}
             Err(err) if err.matches(trc::EventType::Limit(trc::LimitEvent::Quota)) => {
                 return Ok(Err(SetError::over_quota()));
@@ -432,7 +436,12 @@ impl ContactCardSet for Server {
             card,
             ..Default::default()
         }
-        .insert(access_token, account_id, document_id, batch)
+        .insert(
+            access_token.account_tenant_ids(),
+            account_id,
+            document_id,
+            batch,
+        )
         .caused_by(trc::location!())
         .map(|_| Ok(document_id))
     }

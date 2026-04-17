@@ -16,7 +16,7 @@ use std::{
 };
 
 use futures::future::{FutureExt, TryFutureExt};
-use ring::digest;
+use aws_lc_rs::digest;
 use rustls::ClientConfig;
 use rustls_pki_types::ServerName;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};

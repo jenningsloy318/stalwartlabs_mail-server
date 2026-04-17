@@ -112,7 +112,7 @@ impl ChangesLookup for Server {
                 .max_changes
                 .filter(|n| *n != 0)
                 .unwrap_or(usize::MAX),
-            self.core.jmap.changes_max_results.unwrap_or(usize::MAX),
+            self.core.jmap.changes_max_results,
         );
         let mut response: ChangesResponse<NullObject> = ChangesResponse {
             account_id: request.account_id,
@@ -145,7 +145,7 @@ impl ChangesLookup for Server {
             State::Exact(change_id) => {
                 let last_state = match collection {
                     SyncCollection::Calendar | SyncCollection::AddressBook => self
-                        .fetch_dav_resources(access_token, account_id, collection)
+                        .fetch_dav_resources(access_token.account_id(), account_id, collection)
                         .await
                         .caused_by(trc::location!())?
                         .get_state(is_container)
@@ -329,7 +329,8 @@ impl IntermediateChangesResponse {
             | MethodObject::VacationResponse
             | MethodObject::SieveScript
             | MethodObject::Principal
-            | MethodObject::Quota => unreachable!(),
+            | MethodObject::Quota
+            | MethodObject::Registry(_) => unreachable!(),
         })
     }
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use aes_gcm_siv::{AeadInPlace, Aes256GcmSiv, KeyInit, Nonce, aead::Aead};
+use aes_gcm_siv::{AeadInPlace, Aes256GcmSiv, Key, KeyInit, Nonce, aead::Aead};
 use store::blake3;
 
 pub struct SymmetricEncrypt {
@@ -19,11 +19,9 @@ impl SymmetricEncrypt {
 
     pub fn new(key: &[u8], context: &str) -> Self {
         SymmetricEncrypt {
-            aes: Aes256GcmSiv::new(
-                &sha1::digest::generic_array::GenericArray::clone_from_slice(
-                    &blake3::derive_key(context, key)[..],
-                ),
-            ),
+            aes: Aes256GcmSiv::new(Key::<Aes256GcmSiv>::from_slice(&blake3::derive_key(
+                context, key,
+            ))),
         }
     }
 

@@ -38,9 +38,23 @@ impl FdbStore {
         let trx = self.read_trx().await?;
 
         match read_chunked_value(&key, &trx, true).await? {
-            ChunkedValue::Single(bytes) => U::deserialize(&bytes).map(Some),
-            ChunkedValue::Chunked { bytes, .. } => U::deserialize_owned(bytes).map(Some),
+            ChunkedValue::Single(bytes) => {
+                U::deserialize_with_key(key.get(1..).unwrap_or_default(), &bytes).map(Some)
+            }
+            ChunkedValue::Chunked { bytes, .. } => {
+                U::deserialize_owned_with_key(key.get(1..).unwrap_or_default(), bytes).map(Some)
+            }
             ChunkedValue::None => Ok(None),
+        }
+    }
+
+    pub(crate) async fn key_exists(&self, key: impl Key) -> trc::Result<bool> {
+        let key = key.serialize(WITH_SUBSPACE);
+        let trx = self.read_trx().await?;
+
+        match read_chunked_value(&key, &trx, true).await? {
+            ChunkedValue::Single(_) | ChunkedValue::Chunked { .. } => Ok(true),
+            ChunkedValue::None => Ok(false),
         }
     }
 

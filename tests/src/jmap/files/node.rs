@@ -4,14 +4,17 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::jmap::{ChangeType, JMAPTest, JmapUtils};
+use crate::utils::{
+    jmap::{ChangeType, JmapUtils},
+    server::TestServer,
+};
 use ahash::AHashSet;
 use jmap_proto::{object::file_node::FileNodeProperty, request::method::MethodObject};
 use serde_json::json;
 
-pub async fn test(params: &mut JMAPTest) {
+pub async fn test(test: &TestServer) {
     println!("Running File Storage tests...");
-    let account = params.account("jdoe@example.com");
+    let account = test.account("jdoe@example.com");
 
     // Obtain change id
     let change_id = account
@@ -329,5 +332,5 @@ pub async fn test(params: &mut JMAPTest) {
     );
 
     // Make sure everything is gone
-    params.assert_is_empty().await;
+    test.assert_is_empty().await;
 }

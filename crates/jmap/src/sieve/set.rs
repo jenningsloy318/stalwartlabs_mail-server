@@ -7,7 +7,7 @@
 use crate::{blob::download::BlobDownload, changes::state::StateManager};
 use common::{
     Server,
-    auth::{AccessToken, ResourceToken},
+    auth::{AccessToken, AccountCache},
     storage::index::ObjectIndexBuilder,
 };
 use email::sieve::{
@@ -24,10 +24,13 @@ use jmap_proto::{
 };
 use jmap_tools::{Key, Map, Value};
 use rand::distr::Alphanumeric;
+use registry::schema::enums::StorageQuota;
 use sieve::compiler::ErrorType;
 use std::future::Future;
 use store::{
-    Serialize, SerializeInfallible, ValueKey, rand::{Rng, rng}, write::{AlignedBytes, Archive, Archiver, BatchBuilder}
+    Serialize, SerializeInfallible, ValueKey,
+    rand::{Rng, rng},
+    write::{AlignedBytes, Archive, Archiver, BatchBuilder},
 };
 use trc::AddContext;
 use types::{
@@ -38,8 +41,9 @@ use types::{
 };
 
 pub struct SetContext<'x> {
-    resource_token: ResourceToken,
+    account_id: u32,
     access_token: &'x AccessToken,
+    account_cache: &'x AccountCache,
     response: SetResponse<Sieve>,
 }
 
@@ -82,9 +86,11 @@ impl SieveScriptSet for Server {
         let sieve_ids = self
             .document_ids(account_id, Collection::SieveScript, SieveField::Name)
             .await?;
+        let account = self.account(account_id).await.caused_by(trc::location!())?;
         let mut ctx = SetContext {
-            resource_token: self.get_resource_token(access_token, account_id).await?,
+            account_id,
             access_token,
+            account_cache: &account,
             response: SetResponse::from_request(&request, self.core.jmap.set_max_objects)?
                 .with_state(
                     self.assert_state(
@@ -107,7 +113,9 @@ impl SieveScriptSet for Server {
         // Process creates
         let mut batch = BatchBuilder::new();
         for (id, object) in request.unwrap_create() {
-            if sieve_ids.len() < access_token.object_quota(Collection::SieveScript) as u64 {
+            if sieve_ids.len()
+                < self.object_quota(account.object_quotas(), StorageQuota::MaxSieveScripts) as u64
+            {
                 match self
                     .sieve_set_item(object, None, &ctx, session.session_id)
                     .await?
@@ -131,7 +139,7 @@ impl SieveScriptSet for Server {
                             .with_account_id(account_id)
                             .with_collection(Collection::SieveScript)
                             .with_document(document_id)
-                            .custom(builder.with_access_token(ctx.access_token))
+                            .custom(builder.with_changed_by(ctx.access_token.account_tenant_ids()))
                             .caused_by(trc::location!())?
                             .clear(blob_hold)
                             .commit_point();
@@ -253,7 +261,7 @@ impl SieveScriptSet for Server {
 
                         // Write record
                         batch
-                            .custom(builder.with_access_token(ctx.access_token))
+                            .custom(builder.with_changed_by(ctx.access_token.account_tenant_ids()))
                             .caused_by(trc::location!())?
                             .commit_point();
 
@@ -394,12 +402,12 @@ impl SieveScriptSet for Server {
             .unwrap_or_default();
         let mut blob_id = None;
         for (property, mut value) in changes_.into_expanded_object() {
-            if let Err(err) = ctx.response.resolve_self_references(&mut value) {
+            if let Err(err) = ctx.response.resolve_self_references(&mut value, 0, false) {
                 return Ok(Err(err));
             };
             match (&property, value) {
                 (Key::Property(SieveProperty::Name), Value::Str(value)) => {
-                    if value.len() > self.core.jmap.sieve_max_script_name {
+                    if value.len() > self.core.email.sieve_max_script_name {
                         return Ok(Err(SetError::invalid_properties()
                             .with_property(property.into_owned())
                             .with_description("Script name is too long.")));
@@ -414,7 +422,7 @@ impl SieveScriptSet for Server {
                         .is_none_or(|(_, obj)| obj.inner.name != value.as_ref())
                         && let Some(id) = self
                             .document_ids_matching(
-                                ctx.resource_token.account_id,
+                                ctx.account_id,
                                 Collection::SieveScript,
                                 SieveField::Name,
                                 value.as_bytes(),
@@ -463,13 +471,13 @@ impl SieveScriptSet for Server {
 
         let blob_update = if let Some(blob_id) = blob_id {
             if update.as_ref().is_none_or( |(document_id, _)| {
-                !matches!(blob_id.class, BlobClass::Linked { account_id, collection, document_id: d } if account_id == ctx.resource_token.account_id && collection == u8::from(Collection::SieveScript) && *document_id == d)
+                !matches!(blob_id.class, BlobClass::Linked { account_id, collection, document_id: d } if account_id == ctx.account_id && collection == u8::from(Collection::SieveScript) && *document_id == d)
             }) {
                 // Check access
                 if let Some(mut bytes) = self.blob_download(&blob_id, ctx.access_token).await? {
                     // Check quota
                     match self
-                        .has_available_quota(&ctx.resource_token, bytes.len() as u64)
+                        .has_available_quota(ctx.account_cache, bytes.len() as u64)
                         .await
                     {
                         Ok(_) => (),
@@ -477,7 +485,7 @@ impl SieveScriptSet for Server {
                             if err.matches(trc::EventType::Limit(trc::LimitEvent::Quota))
                                 || err.matches(trc::EventType::Limit(trc::LimitEvent::TenantQuota))
                             {
-                                trc::error!(err.account_id(ctx.resource_token.account_id).span_id(session_id));
+                                trc::error!(err.account_id(ctx.account_id).span_id(session_id));
                                 return Ok(Err(SetError::over_quota()));
                             } else {
                                 return Err(err);

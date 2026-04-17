@@ -11,7 +11,7 @@ use crate::{
         MessageSource, MessageWrapper, RCPT_SPAM_PAYLOAD, Status, UnexpectedResponse,
         quota::HasQueueQuota, spool::SmtpSpool,
     },
-    reporting::SmtpReporting,
+    reporting::send::MtaReportSend,
 };
 use common::Server;
 use email::message::delivery::{IngestMessage, IngestRecipient, LocalDeliveryStatus, MailDelivery};

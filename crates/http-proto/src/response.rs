@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use common::manager::webadmin::Resource;
+use common::manager::application::Resource;
 use http_body_util::{BodyExt, Full};
 use hyper::{
     StatusCode,
@@ -25,6 +25,15 @@ impl HttpResponse {
             builder: hyper::Response::builder().status(status),
             body: HttpResponseBody::Empty,
         }
+    }
+
+    pub fn redirect(location: String) -> Self {
+        let mut response = HttpResponse::new(StatusCode::FOUND);
+        response.builder = response
+            .builder
+            .status(StatusCode::FOUND)
+            .header(header::LOCATION, location);
+        response
     }
 
     pub fn with_content_type<V>(mut self, content_type: V) -> Self
@@ -151,6 +160,13 @@ impl HttpResponse {
 
     pub fn with_no_cache(mut self) -> Self {
         self.builder = self.builder.header(header::CACHE_CONTROL, "no-cache");
+        self
+    }
+
+    pub fn with_immutable_cache(mut self) -> Self {
+        self.builder = self
+            .builder
+            .header(header::CACHE_CONTROL, "public, max-age=31536000, immutable");
         self
     }
 

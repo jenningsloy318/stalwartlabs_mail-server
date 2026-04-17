@@ -69,7 +69,11 @@ impl CalendarFreebusyRequestHandler for Server {
             .into_owned_uri()?;
         let account_id = resource_.account_id;
         let resources = self
-            .fetch_dav_resources(access_token, account_id, SyncCollection::Calendar)
+            .fetch_dav_resources(
+                access_token.account_id(),
+                account_id,
+                SyncCollection::Calendar,
+            )
             .await
             .caused_by(trc::location!())?;
         let resource = resources
@@ -308,7 +312,7 @@ impl CalendarFreebusyRequestHandler for Server {
 
 fn merge_intervals(mut intervals: Vec<(i64, i64)>) -> Vec<ICalendarValue> {
     if intervals.len() > 1 {
-        intervals.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        intervals.sort_unstable_by_key(|a| a.0);
 
         let mut unique_intervals = Vec::new();
         let mut start_time = intervals[0].0;

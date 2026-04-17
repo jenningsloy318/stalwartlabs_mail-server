@@ -2,6 +2,100 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.16.0] - 2026-XX-XX
+
+This version includes **multiple breaking changes**. If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
+
+## Added
+- Security enhancements:
+  - Password strength enforcement using the `zxcvbn` algorithm
+  - Password expiration, rotation policies and IP address restrictions for user accounts
+  - App Passwords with limited access (#1609), labels (#2255), IP address restrictions and expiration dates
+  - API keys with limited access, labels, IP address restrictions and expiration dates
+  - Auto-ban comments and details about the triggering event (#1321)
+  - Auto-ban expiration after a configurable time period (#964)
+- DNS Management:
+  - Automatic DNS management of `MX`, `TXT`, `CNAME`, `SRV`, `CAA` and `TLSA` records (#463 #1017 #1419 #2438 #1370 #1406 #1371)
+  - Automatic update of `TLSA` records when ACME certificates change (#1664)
+  - RFC2136 `SIG(0)` support (#856)
+  - Route53 provider support (contributed by @jimmystewpot)
+  - Google Cloud DNS provider support (contributed by @jimmystewpot)
+  - Bunny provider support (contributed by @angeloanan)
+  - Porkbun provider support (contributed by @jeffesquivels)
+  - DNSimple provider support (contributed by @NelsonVides)
+  - Spaceship provider support (contributed by @matserix)
+- DKIM:
+  - Automatic DKIM key generation, rotation and DNS management (#368 #961)
+  - Store DKIM keys in the database (#1264)
+  - Ignore insecure signatures when verifying DKIM (#1068 #467)
+- ACME/TLS:
+  - `DNS-PERSIST-01` ACME challenge support (#2837)
+  - Renew certificates on demand, view certificate details (#675 #1162 #2566)
+  - `CAA` record support (#468) with `accounturi` parameter (#1933)  
+  - `TLSA` records publishing restricted to `3 1 1` and `2 1 1` (#2193)
+- OIDC and OAuth:
+  - JWT token validation without requesting userinfo from the OIDC provider.
+  - Audience (`aud`) claim (#2603) and scope validation support.
+  - Groups support (#1448)
+  - RFC 7636 - Proof Key for Code Exchange by OAuth Public Clients
+- LDAP:
+  - Separate filter for groups (#1841)
+  - Improve support for OpenLDAP schemas (#760)
+  - Improve and simplify LDAP settings (#2194 #2174)
+- Directory:
+  - Masked email addresses for enhanced privacy (*Enterprise*)
+  - Domain aliases (#583)
+  - E-mail alias descriptions and option to disable aliases (#506)
+  - Account archiving and un-deletion (#2767) (*Enterprise*)
+  - Per-domain directory backends (*Enterprise*)
+- Account configuration and discovery:
+  - Automatic Configuration of Email, Calendar, and Contact Server Settings ([draft-mailmaint-uaautoconf-04](https://datatracker.ietf.org/doc/html/draft-eggert-mailmaint-uaautoconf-04)) (#2201)
+  - MS Autodiscover V2 support (#679)
+- Sieve: Allow deactivating scripts without deleting them (#1251).
+- Tracing: Enable events only mode (#2276)
+- Clustering:
+  - Automatic cluster node ID generation and management.
+  - Unified cluster management (#960)
+  - Outbound MTA role (#1692)
+
+## Changed
+- Replaced REST API with JMAP API (#2262 #959 #1480)
+- Removed support for Authenticated Received Chain (ARC) sealing ([learn more](https://mailarchive.ietf.org/arch/msg/dmarc/KvX3-H1SL0Gh3IDl7FuR2hoR87M/)).
+- Directory: Removed `smtp`, `imap` and `memory` directory backends.
+- Use `aws-lc` for cryptographic operations instead of `ring`.
+- Use `rustls-platform-verifier` for TLS certificate verification instead of `webpki` (#247).
+
+## Fixed
+- Directory:
+  - Cannot remove built-in "admin" role from user once it was assigned (#1467)
+  - Delete associated records (#963)
+  - Updated Role permissions not applied (#2038)
+  - Recreated account cannot log in until server is restarted (#1469)
+  - Subaddressing does not work for groups (#475)
+  - New LDAP aliases are rejected (#1318). 
+  - Validate account and group names (#2209)
+- MTA:
+  - RCPT TO stage settings improvements (#2217 #394)
+  - Relay to IP addresses (#838)
+  - Duplicate delivery inverted check
+  - SASL challenge responses include invalid `Go ahead` text
+- JMAP: 
+  - Fix `inMailboxOtherThan` query logic.
+  - Fix `hasAttachment` search field (#2778)
+- IMAP: 
+  - Increment argument max length to `8000` bytes
+  - ACL: Add `RIGHTS` capability (#2762)
+  - ACL: Fix `ACL SET` permission override.
+- WebDAV: Return `304` `NOT_MODIFIED` on `If-None-Match`
+- Configuration: Prefix parsing issues (#2495)
+- OIDC: JWKS Exposes Symmetric Signing Key
+- SQLite: Fix thread pool exhaustion.
+- PostgreSQL: Use clean recycling method on connection pool
+- Meilisearch: Make `id` sorteable.
+- ACME: Fix wrong origin for subdomain updates (#2360)
+- Spam filter: Skip invalid messages during training.
+- Calendar: Include minutes in localized invite templates (#2828)
+
 ## [0.15.5] - 2026-02-14
 
 If you are upgrading from v0.14.x and below, this version includes **multiple breaking changes**. Please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_15.md) for more information on how to upgrade from previous versions.

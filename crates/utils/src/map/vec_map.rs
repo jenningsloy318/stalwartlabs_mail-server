@@ -14,13 +14,13 @@ use std::{borrow::Borrow, cmp::Ordering, fmt, hash::Hash};
 
 #[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct VecMap<K: Eq + PartialEq, V> {
-    inner: Vec<KeyValue<K, V>>,
+    pub inner: Vec<KeyValue<K, V>>,
 }
 
 #[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeyValue<K: Eq + PartialEq, V> {
-    key: K,
-    value: V,
+    pub key: K,
+    pub value: V,
 }
 
 impl<K: Eq + PartialEq, V> Default for VecMap<K, V> {
@@ -187,6 +187,11 @@ impl<K: Eq + PartialEq, V> VecMap<K, V> {
     }
 
     #[inline(always)]
+    pub fn last(&self) -> Option<(&K, &V)> {
+        self.inner.last().map(|kv| (&kv.key, &kv.value))
+    }
+
+    #[inline(always)]
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
         self.inner.iter_mut().map(|kv| &mut kv.value)
     }
@@ -214,6 +219,31 @@ impl<K: Eq + PartialEq, V> VecMap<K, V> {
             Ordering::Equal => a.value.cmp(&b.value),
             cmp => cmp,
         });
+    }
+
+    pub fn sort_unstable_by_key(&mut self)
+    where
+        K: Ord,
+    {
+        self.inner.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+    }
+
+    pub fn extend(&mut self, iter: impl IntoIterator<Item = (K, V)>) {
+        for (k, v) in iter {
+            self.append(k, v);
+        }
+    }
+
+    pub fn drain(&mut self) -> impl Iterator<Item = (K, V)> + '_ {
+        self.inner.drain(..).map(|kv| (kv.key, kv.value))
+    }
+
+    pub fn into_values(self) -> impl Iterator<Item = V> {
+        self.inner.into_iter().map(|kv| kv.value)
+    }
+
+    pub fn into_keys(self) -> impl Iterator<Item = K> {
+        self.inner.into_iter().map(|kv| kv.key)
     }
 }
 
@@ -292,7 +322,8 @@ impl<K: Eq + PartialEq, V> FromIterator<(K, V)> for VecMap<K, V> {
     where
         T: IntoIterator<Item = (K, V)>,
     {
-        let mut map = VecMap::new();
+        let iter = iter.into_iter();
+        let mut map = VecMap::with_capacity(iter.size_hint().0);
         for (k, v) in iter {
             map.append(k, v);
         }

@@ -12,7 +12,11 @@ use jmap_proto::{
     object::addressbook::{self, AddressBookProperty, AddressBookValue},
 };
 use jmap_tools::{Map, Value};
-use store::{ValueKey, roaring::RoaringBitmap, write::{AlignedBytes, Archive, ValueClass}};
+use store::{
+    ValueKey,
+    roaring::RoaringBitmap,
+    write::{AlignedBytes, Archive, ValueClass},
+};
 use trc::AddContext;
 use types::{
     acl::{Acl, AclGrant},
@@ -46,7 +50,11 @@ impl AddressBookGet for Server {
         ]);
         let account_id = request.account_id.document_id();
         let cache = self
-            .fetch_dav_resources(access_token, account_id, SyncCollection::AddressBook)
+            .fetch_dav_resources(
+                access_token.account_id(),
+                account_id,
+                SyncCollection::AddressBook,
+            )
             .await?;
         let address_book_ids = if access_token.is_member(account_id) {
             cache.document_ids(true).collect::<RoaringBitmap>()
@@ -154,7 +162,7 @@ impl AddressBookGet for Server {
                             address_book
                                 .subscribers
                                 .iter()
-                                .any(|account_id| *account_id == access_token.primary_id()),
+                                .any(|account_id| *account_id == access_token.account_id()),
                         );
                     }
                     AddressBookProperty::ShareWith => {

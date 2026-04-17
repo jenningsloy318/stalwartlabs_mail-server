@@ -4,11 +4,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use std::sync::Arc;
-
 use super::{UploadResponse, download::BlobDownload};
 use common::{Server, auth::AccessToken};
-use directory::Permission;
 use jmap_proto::{
     error::set::SetError,
     method::upload::{
@@ -16,6 +13,7 @@ use jmap_proto::{
     },
     request::reference::MaybeIdReference,
 };
+use registry::schema::enums::Permission;
 use std::future::Future;
 use trc::AddContext;
 use types::id::Id;
@@ -36,7 +34,7 @@ pub trait BlobUpload: Sync + Send {
         account_id: Id,
         content_type: &str,
         data: &[u8],
-        access_token: Arc<AccessToken>,
+        access_token: &AccessToken,
     ) -> impl Future<Output = trc::Result<UploadResponse>> + Send;
 }
 
@@ -166,19 +164,11 @@ impl BlobUpload for Server {
             }
 
             // Enforce quota
-            let used = self
-                .core
-                .storage
-                .data
-                .blob_quota(account_id)
-                .await
-                .caused_by(trc::location!())?;
-
-            if ((self.core.jmap.upload_tmp_quota_size > 0
-                && used.bytes + data.len() > self.core.jmap.upload_tmp_quota_size)
-                || (self.core.jmap.upload_tmp_quota_amount > 0
-                    && used.count + 1 > self.core.jmap.upload_tmp_quota_amount))
-                && !access_token.has_permission(Permission::UnlimitedUploads)
+            if !access_token.has_permission(Permission::UnlimitedUploads)
+                && !self
+                    .blob_has_quota(account_id, data.len())
+                    .await
+                    .caused_by(trc::location!())?
             {
                 response.not_created.append(
                     create_id,
@@ -210,11 +200,11 @@ impl BlobUpload for Server {
         account_id: Id,
         content_type: &str,
         data: &[u8],
-        access_token: Arc<AccessToken>,
+        access_token: &AccessToken,
     ) -> trc::Result<UploadResponse> {
         // Limit concurrent uploads
         let _in_flight = self
-            .is_upload_allowed(&access_token)
+            .is_upload_allowed(access_token)
             .caused_by(trc::location!())?;
 
         #[cfg(feature = "test_mode")]
@@ -226,19 +216,11 @@ impl BlobUpload for Server {
         }
 
         // Enforce quota
-        let used = self
-            .core
-            .storage
-            .data
-            .blob_quota(account_id.document_id())
-            .await
-            .caused_by(trc::location!())?;
-
-        if ((self.core.jmap.upload_tmp_quota_size > 0
-            && used.bytes + data.len() > self.core.jmap.upload_tmp_quota_size)
-            || (self.core.jmap.upload_tmp_quota_amount > 0
-                && used.count + 1 > self.core.jmap.upload_tmp_quota_amount))
-            && !access_token.has_permission(Permission::UnlimitedUploads)
+        if !access_token.has_permission(Permission::UnlimitedUploads)
+            && !self
+                .blob_has_quota(account_id.document_id(), data.len())
+                .await
+                .caused_by(trc::location!())?
         {
             let err = Err(trc::LimitEvent::BlobQuota
                 .into_err()

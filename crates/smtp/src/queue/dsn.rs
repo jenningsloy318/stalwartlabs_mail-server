@@ -10,7 +10,7 @@ use super::{
     Recipient, Status,
 };
 use crate::queue::{MessageWrapper, UnexpectedResponse};
-use crate::reporting::SmtpReporting;
+use crate::reporting::send::MtaReportSend;
 use common::Server;
 use mail_builder::MessageBuilder;
 use mail_builder::headers::HeaderType;

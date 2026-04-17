@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use imap_proto::ResponseType;
-
 use super::{AssertResult, ImapConnection, Type};
+use imap_proto::ResponseType;
 
 pub async fn test(imap: &mut ImapConnection, _imap_check: &mut ImapConnection) {
     println!("Running FETCH tests...");

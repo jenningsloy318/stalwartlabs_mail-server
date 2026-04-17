@@ -4,16 +4,15 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use std::time::Instant;
-
 use crate::core::Session;
-use common::listener::SessionStream;
-use directory::Permission;
+use common::network::SessionStream;
 use imap_proto::{
     Command, StatusResponse,
     protocol::{ImapResponse, ProtocolVersion, capability::Capability, enable},
     receiver::Request,
 };
+use registry::schema::enums::Permission;
+use std::time::Instant;
 
 impl<T: SessionStream> Session<T> {
     pub async fn handle_enable(&mut self, request: Request<Command>) -> trc::Result<()> {

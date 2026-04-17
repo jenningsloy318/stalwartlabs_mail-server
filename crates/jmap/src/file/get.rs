@@ -13,7 +13,11 @@ use jmap_proto::{
     types::date::UTCDate,
 };
 use jmap_tools::{Map, Value};
-use store::{ValueKey, roaring::RoaringBitmap, write::{AlignedBytes, Archive, now}};
+use store::{
+    ValueKey,
+    roaring::RoaringBitmap,
+    write::{AlignedBytes, Archive, now},
+};
 use trc::AddContext;
 use types::{
     acl::{Acl, AclGrant},
@@ -45,7 +49,11 @@ impl FileNodeGet for Server {
         ]);
         let account_id = request.account_id.document_id();
         let cache = self
-            .fetch_dav_resources(access_token, account_id, SyncCollection::FileNode)
+            .fetch_dav_resources(
+                access_token.account_id(),
+                account_id,
+                SyncCollection::FileNode,
+            )
             .await?;
         let file_node_ids = if access_token.is_member(account_id) {
             cache

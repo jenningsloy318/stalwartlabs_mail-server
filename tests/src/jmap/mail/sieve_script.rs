@@ -5,14 +5,8 @@
  */
 
 use crate::{
-    jmap::{
-        JMAPTest,
-        mail::{
-            delivery::SmtpConnection,
-            submission::{MockMessage, assert_message_delivery, spawn_mock_smtp_server},
-        },
-    },
-    smtp::DnsCache,
+    jmap::mail::submission::{MockMessage, assert_message_delivery, spawn_mock_smtp_server},
+    utils::{dns::DnsCache, server::TestServer, smtp::SmtpConnection},
 };
 use jmap_client::{
     Error,
@@ -20,17 +14,32 @@ use jmap_client::{
     email, mailbox,
     sieve::query::{Comparator, Filter},
 };
+use registry::schema::{prelude::ObjectType, structs::SieveUserScript};
 use std::{
     fs,
     path::PathBuf,
     time::{Duration, Instant},
 };
 
-pub async fn test(params: &mut JMAPTest) {
+pub async fn test(test: &TestServer) {
     println!("Running Sieve tests...");
-    let server = params.server.clone();
-    let account = params.account("jdoe@example.com");
-    let client = account.client();
+
+    // Create a global script
+    let admin = test.account("admin@example.com");
+    admin
+        .registry_create_object(SieveUserScript {
+            contents: "require \"reject\";\nreject \"Rejected from a global script.\";\nstop;\n"
+                .into(),
+            description: None,
+            is_active: true,
+            name: "common".into(),
+        })
+        .await;
+    admin.reload_settings().await;
+
+    let server = test.server.clone();
+    let account = test.account("jdoe@example.com");
+    let client = account.jmap_client().await;
 
     // Validate scripts
     client
@@ -496,8 +505,11 @@ pub async fn test(params: &mut JMAPTest) {
     for id in request.send_query_sieve_script().await.unwrap().take_ids() {
         client.sieve_script_destroy(&id).await.unwrap();
     }
-    params.destroy_all_mailboxes(account).await;
-    params.assert_is_empty().await;
+    test.destroy_all_mailboxes(account).await;
+    admin
+        .registry_destroy_all(ObjectType::SieveUserScript)
+        .await;
+    test.assert_is_empty().await;
 }
 
 fn get_script(name: &str) -> Vec<u8> {

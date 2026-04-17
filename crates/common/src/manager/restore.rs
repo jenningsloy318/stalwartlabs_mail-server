@@ -7,13 +7,15 @@
 use super::backup::MAGIC_MARKER;
 use crate::{Core, DATABASE_SCHEMA_VERSION};
 use lz4_flex::frame::FrameDecoder;
+use registry::schema::enums::CompressionAlgo;
 use std::{
     fs::File,
     io::{BufReader, ErrorKind, Read},
     path::{Path, PathBuf},
 };
 use store::{
-    BlobStore, SUBSPACE_BLOBS, SUBSPACE_COUNTER, SUBSPACE_INDEXES, SUBSPACE_QUOTA, Store, U32_LEN,
+    BlobStore, SUBSPACE_BLOBS, SUBSPACE_COUNTER, SUBSPACE_INDEXES, SUBSPACE_QUOTA,
+    SUBSPACE_REGISTRY_IDX, Store, U32_LEN,
     write::{AnyClass, BatchBuilder, ValueClass, key::DeserializeBigEndian},
 };
 use types::{collection::Collection, field::Field};
@@ -56,7 +58,7 @@ async fn restore_file(store: Store, blob_store: BlobStore, path: &Path) {
         SUBSPACE_BLOBS => {
             while let Some((key, value)) = reader.next() {
                 blob_store
-                    .put_blob(&key, &value)
+                    .put_blob(&key, &value, CompressionAlgo::Lz4)
                     .await
                     .failed("Failed to write blob");
             }
@@ -83,7 +85,7 @@ async fn restore_file(store: Store, blob_store: BlobStore, path: &Path) {
                 }
             }
         }
-        SUBSPACE_INDEXES => {
+        SUBSPACE_INDEXES | SUBSPACE_REGISTRY_IDX => {
             while let Some((key, _)) = reader.next() {
                 let account_id = key
                     .as_slice()

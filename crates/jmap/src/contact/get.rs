@@ -14,7 +14,11 @@ use jmap_proto::{
     request::reference::MaybeResultReference,
 };
 use jmap_tools::{Map, Value};
-use store::{ValueKey, roaring::RoaringBitmap, write::{AlignedBytes, Archive}};
+use store::{
+    ValueKey,
+    roaring::RoaringBitmap,
+    write::{AlignedBytes, Archive},
+};
 use trc::AddContext;
 use types::{
     acl::Acl,
@@ -46,7 +50,11 @@ impl ContactCardGet for Server {
             request.unwrap_properties(&[JSContactProperty::Id, JSContactProperty::AddressBookIds]);
         let account_id = request.account_id.document_id();
         let cache = self
-            .fetch_dav_resources(access_token, account_id, SyncCollection::AddressBook)
+            .fetch_dav_resources(
+                access_token.account_id(),
+                account_id,
+                SyncCollection::AddressBook,
+            )
             .await?;
         let contact_ids = if access_token.is_member(account_id) {
             cache.document_ids(false).collect::<RoaringBitmap>()

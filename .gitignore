@@ -4,5 +4,6 @@
 *.failed
 *_failed
 run.sh
-_ignore
+.ignore
+.data
 .DS_Store

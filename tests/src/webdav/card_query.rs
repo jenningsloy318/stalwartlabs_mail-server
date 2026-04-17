@@ -4,17 +4,18 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use super::WebDavTest;
+use crate::utils::server::TestServer;
+
 use dav_proto::schema::property::{CardDavProperty, DavProperty, WebDavProperty};
 use groupware::DavResourceName;
 use hyper::StatusCode;
 
-pub async fn test(test: &WebDavTest) {
+pub async fn test(test: &TestServer) {
     println!("Running REPORT addressbook-query tests...");
-    let client = test.client("john");
+    let client = test.account("john@example.com").webdav_client();
 
     // Create test data
-    let default_path = format!("{}/john/default/", DavResourceName::Card.base_path());
+    let default_path = format!("{}/john%40example.com/default/", DavResourceName::Card.base_path());
     let mut hrefs = Vec::with_capacity(3);
     for (i, vcard) in [VCARD1, VCARD2, VCARD3].iter().enumerate() {
         let href = format!("{default_path}contact-{i}.vcf",);

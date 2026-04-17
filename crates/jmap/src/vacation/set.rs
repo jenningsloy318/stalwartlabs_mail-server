@@ -170,7 +170,7 @@ impl VacationResponseSet for Server {
             let vacation = sieve.vacation_response.as_mut().unwrap();
 
             for (property, mut value) in changes.into_expanded_object() {
-                if let Err(err) = response.resolve_self_references(&mut value) {
+                if let Err(err) = response.resolve_self_references(&mut value, 0, false) {
                     return Ok(set_error(response, create_id, err));
                 };
 
@@ -260,7 +260,7 @@ impl VacationResponseSet for Server {
             let mut obj = ObjectIndexBuilder::new()
                 .with_current_opt(prev_sieve)
                 .with_changes(sieve)
-                .with_access_token(access_token);
+                .with_changed_by(access_token.account_tenant_ids());
 
             // Update id
             let document_id = if let Some(document_id) = document_id {

@@ -22,7 +22,7 @@
 use crate::manager::fetch_resource;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use hyper::{HeaderMap, header::AUTHORIZATION};
-use ring::signature::{ED25519, UnparsedPublicKey};
+use aws_lc_rs::signature::{ED25519, UnparsedPublicKey};
 use std::{
     fmt::{Display, Formatter},
     time::Duration,

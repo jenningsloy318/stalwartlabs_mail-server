@@ -15,10 +15,10 @@ pub struct QueryResponseBuilder {
     requested_position: i32,
     position: i32,
     pub limit: usize,
-    anchor: u32,
+    anchor: u64,
     anchor_offset: i32,
-    has_anchor: bool,
-    anchor_found: bool,
+    pub has_anchor: bool,
+    pub anchor_found: bool,
 
     pub response: QueryResponse,
 }
@@ -41,18 +41,13 @@ impl QueryResponseBuilder {
             (std::cmp::min(max_results, total_results), max_results)
         };
 
-        let (has_anchor, anchor) = request
-            .anchor
-            .map(|anchor| (true, anchor.document_id()))
-            .unwrap_or((false, 0));
-
         QueryResponseBuilder {
             requested_position: request.position.unwrap_or(0),
             position: request.position.unwrap_or(0),
             limit: limit_total,
-            anchor,
+            has_anchor: request.anchor.is_some(),
+            anchor: request.anchor.map(|anchor| anchor.id()).unwrap_or(0),
             anchor_offset: request.anchor_offset.unwrap_or(0),
-            has_anchor,
             anchor_found: false,
             response: QueryResponse {
                 account_id: request.account_id,
@@ -80,7 +75,7 @@ impl QueryResponseBuilder {
     }
 
     pub fn add_id(&mut self, id: Id) -> bool {
-        let document_id = id.document_id();
+        let id_u64 = id.id();
 
         // Pagination
         if !self.has_anchor {
@@ -98,7 +93,7 @@ impl QueryResponseBuilder {
             }
         } else if self.anchor_offset >= 0 {
             if !self.anchor_found {
-                if document_id != self.anchor {
+                if id_u64 != self.anchor {
                     return true;
                 }
                 self.anchor_found = true;
@@ -113,7 +108,7 @@ impl QueryResponseBuilder {
                 }
             }
         } else {
-            self.anchor_found = document_id == self.anchor;
+            self.anchor_found = id_u64 == self.anchor;
             self.response.ids.push(id);
 
             if self.anchor_found {

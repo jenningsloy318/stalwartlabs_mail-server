@@ -8,11 +8,12 @@ use super::NextHop;
 use crate::queue::{Error, ErrorDetails, HostResponse, Status};
 use common::{
     Server,
-    config::smtp::queue::{ConnectionStrategy, IpAndHost, MxConfig},
-    expr::{V_MX, functions::ResolveVariable},
+    config::smtp::queue::{ConnectionStrategy, HostOrIp, IpAndHost, MxConfig},
+    expr::functions::ResolveVariable,
 };
 use mail_auth::{IpLookupStrategy, MX};
 use rand::{Rng, seq::SliceRandom};
+use registry::schema::enums::ExpressionVariable;
 use std::{future::Future, net::IpAddr, sync::Arc};
 
 pub struct IpLookupResult {
@@ -57,11 +58,11 @@ impl DnsLookup for Server {
                 .await
             {
                 Ok(addrs) => addrs,
-                Err(_) if has_ipv6 => Arc::new(Vec::new()),
+                Err(_) if has_ipv6 => Arc::new([]),
                 Err(err) => return Err(err),
             }
         } else {
-            Arc::new(Vec::new())
+            Arc::new([])
         };
 
         if has_ipv6 {
@@ -74,7 +75,7 @@ impl DnsLookup for Server {
                 .await
             {
                 Ok(addrs) => addrs,
-                Err(_) if !ipv4_addrs.is_empty() => Arc::new(Vec::new()),
+                Err(_) if !ipv4_addrs.is_empty() => Arc::new([]),
                 Err(err) => return Err(err),
             };
             if v4_first {
@@ -110,41 +111,44 @@ impl DnsLookup for Server {
         remote_host: &NextHop<'_>,
         envelope: &impl ResolveVariable,
     ) -> Result<IpLookupResult, Status<HostResponse<Box<str>>, ErrorDetails>> {
-        let mut remote_ips = self
-            .ip_lookup(
-                remote_host.fqdn_hostname().as_ref(),
-                remote_host.ip_lookup_strategy(),
-                remote_host.max_multi_homed(),
-            )
-            .await
-            .map_err(|err| {
-                if let mail_auth::Error::DnsRecordNotFound(_) = &err {
-                    if matches!(
-                        remote_host,
-                        NextHop::MX {
-                            is_implicit: true,
-                            ..
+        let mut remote_ips = match remote_host.fqdn_hostname() {
+            HostOrIp::Host(hostname) => self
+                .ip_lookup(
+                    hostname.as_ref(),
+                    remote_host.ip_lookup_strategy(),
+                    remote_host.max_multi_homed(),
+                )
+                .await
+                .map_err(|err| {
+                    if let mail_auth::Error::DnsRecordNotFound(_) = &err {
+                        if matches!(
+                            remote_host,
+                            NextHop::MX {
+                                is_implicit: true,
+                                ..
+                            }
+                        ) {
+                            Status::PermanentFailure(ErrorDetails {
+                                entity: remote_host.hostname().into(),
+                                details: Error::DnsError("no MX record found.".into()),
+                            })
+                        } else {
+                            Status::PermanentFailure(ErrorDetails {
+                                entity: remote_host.hostname().into(),
+                                details: Error::ConnectionError("record not found for MX".into()),
+                            })
                         }
-                    ) {
-                        Status::PermanentFailure(ErrorDetails {
-                            entity: remote_host.hostname().into(),
-                            details: Error::DnsError("no MX record found.".into()),
-                        })
                     } else {
-                        Status::PermanentFailure(ErrorDetails {
+                        Status::TemporaryFailure(ErrorDetails {
                             entity: remote_host.hostname().into(),
-                            details: Error::ConnectionError("record not found for MX".into()),
+                            details: Error::ConnectionError(
+                                format!("lookup error: {err}").into_boxed_str(),
+                            ),
                         })
                     }
-                } else {
-                    Status::TemporaryFailure(ErrorDetails {
-                        entity: remote_host.hostname().into(),
-                        details: Error::ConnectionError(
-                            format!("lookup error: {err}").into_boxed_str(),
-                        ),
-                    })
-                }
-            })?;
+                })?,
+            HostOrIp::Ip(ip) => vec![ip],
+        };
 
         if !remote_ips.is_empty() {
             #[cfg(not(feature = "test_mode"))]
@@ -165,7 +169,9 @@ impl DnsLookup for Server {
                 details: Error::DnsError(
                     format!(
                         "No IP addresses found for {:?}.",
-                        envelope.resolve_variable(V_MX).to_string()
+                        envelope
+                            .resolve_variable(ExpressionVariable::Mx)
+                            .to_string()
                     )
                     .into_boxed_str(),
                 ),
@@ -201,7 +207,7 @@ pub trait ToNextHop {
     ) -> Option<Vec<NextHop<'x>>>;
 }
 
-impl ToNextHop for Vec<MX> {
+impl ToNextHop for Arc<[MX]> {
     fn to_remote_hosts<'x, 'y: 'x>(
         &'x self,
         domain: &'y str,
@@ -217,7 +223,7 @@ impl ToNextHop for Vec<MX> {
                     slice.shuffle(&mut rand::rng());
                     for remote_host in slice {
                         remote_hosts.push(NextHop::MX {
-                            host: remote_host.as_str(),
+                            host: remote_host.as_ref(),
                             is_implicit: false,
                             config,
                         });
@@ -227,11 +233,11 @@ impl ToNextHop for Vec<MX> {
                     }
                 } else if let Some(remote_host) = mx.exchanges.first() {
                     // Check for Null MX
-                    if mx.preference == 0 && remote_host == "." {
+                    if mx.preference == 0 && remote_host.as_ref() == "." {
                         return None;
                     }
                     remote_hosts.push(NextHop::MX {
-                        host: remote_host.as_str(),
+                        host: remote_host.as_ref(),
                         is_implicit: false,
                         config,
                     });

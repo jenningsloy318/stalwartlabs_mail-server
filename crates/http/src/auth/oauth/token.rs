@@ -5,9 +5,10 @@
  */
 
 use super::{
-    ArchivedOAuthStatus, ErrorType, FormData, MAX_POST_LEN, OAuthCode, OAuthResponse, OAuthStatus,
-    TokenResponse, registration::ClientRegistrationHandler,
+    ArchivedOAuthStatus, ArchivedPkceCodeChallenge, ErrorType, FormData, MAX_POST_LEN, OAuthCode,
+    OAuthResponse, OAuthStatus, TokenResponse, registration::ClientRegistrationHandler,
 };
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use common::{
     KV_OAUTH, Server,
     auth::{
@@ -17,6 +18,7 @@ use common::{
 };
 use http_proto::*;
 use hyper::StatusCode;
+use sha2::{Digest, Sha256};
 use std::future::Future;
 use store::{
     dispatch::lookup::KeyValue,
@@ -62,9 +64,7 @@ impl TokenHandler for Server {
 
         let mut response = TokenResponse::error(ErrorType::InvalidGrant);
 
-        let issuer = HttpContext::new(&session, req)
-            .resolve_response_url(self)
-            .await;
+        let issuer = HttpContext::new(&session, req).resolve_response_url(self);
 
         if grant_type.eq_ignore_ascii_case("authorization_code") {
             response = if let (Some(code), Some(client_id), Some(redirect_uri)) = (
@@ -74,9 +74,7 @@ impl TokenHandler for Server {
             ) {
                 // Obtain code
                 match self
-                    .core
-                    .storage
-                    .lookup
+                    .in_memory_store()
                     .key_get::<Archive<AlignedBytes>>(KeyValue::<()>::build_key(
                         KV_OAUTH,
                         code.as_bytes(),
@@ -89,6 +87,8 @@ impl TokenHandler for Server {
                             .caused_by(trc::location!())?;
                         if client_id != oauth.client_id || redirect_uri != oauth.params {
                             TokenResponse::error(ErrorType::InvalidClient)
+                        } else if !verify_pkce(&oauth.code_challenge, params.get("code_verifier")) {
+                            TokenResponse::error(ErrorType::InvalidGrant)
                         } else if oauth.status == OAuthStatus::Authorized {
                             // Validate client id
                             if let Some(error) = self
@@ -102,9 +102,7 @@ impl TokenHandler for Server {
                                 TokenResponse::error(error)
                             } else {
                                 // Mark this token as issued
-                                self.core
-                                    .storage
-                                    .lookup
+                                self.in_memory_store()
                                     .key_delete(KeyValue::<()>::build_key(
                                         KV_OAUTH,
                                         code.as_bytes(),
@@ -146,9 +144,7 @@ impl TokenHandler for Server {
             {
                 // Obtain code
                 if let Some(auth_code_) = self
-                    .core
-                    .storage
-                    .lookup
+                    .in_memory_store()
                     .key_get::<Archive<AlignedBytes>>(KeyValue::<()>::build_key(
                         KV_OAUTH,
                         device_code.as_bytes(),
@@ -174,9 +170,7 @@ impl TokenHandler for Server {
                                     TokenResponse::error(error)
                                 } else {
                                     // Mark this token as issued
-                                    self.core
-                                        .storage
-                                        .lookup
+                                    self.in_memory_store()
                                         .key_delete(KeyValue::<()>::build_key(
                                             KV_OAUTH,
                                             device_code.as_bytes(),
@@ -315,11 +309,8 @@ impl TokenHandler for Server {
                 None
             },
             id_token: if with_id_token {
-                // Obtain access token
-                let access_token = self
-                    .get_access_token(account_id)
-                    .await
-                    .caused_by(trc::location!())?;
+                // Obtain account
+                let account = self.account(account_id).await.caused_by(trc::location!())?;
 
                 match self.issue_id_token(
                     account_id.to_string(),
@@ -327,9 +318,9 @@ impl TokenHandler for Server {
                     client_id,
                     StandardClaims {
                         nonce,
-                        preferred_username: access_token.name.clone().into(),
-                        email: access_token.emails.first().cloned(),
-                        description: access_token.description.clone(),
+                        preferred_username: account.name().to_string().into(),
+                        email: account.name().to_string().into(),
+                        description: account.description().map(|d| d.to_string()),
                     },
                 ) {
                     Ok(id_token) => Some(id_token),
@@ -343,5 +334,41 @@ impl TokenHandler for Server {
             },
             scope: None,
         })
+    }
+}
+
+fn verify_pkce(stored: &ArchivedPkceCodeChallenge, verifier: Option<&str>) -> bool {
+    let is_valid_pkce_challenge = |challenge: &str| {
+        (43..=128).contains(&challenge.len())
+            && challenge
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~'))
+    };
+    let constant_time_eq = |a: &[u8], b: &[u8]| {
+        if a.len() != b.len() {
+            return false;
+        }
+        let mut diff: u8 = 0;
+        for (x, y) in a.iter().zip(b.iter()) {
+            diff |= x ^ y;
+        }
+        diff == 0
+    };
+
+    match (stored, verifier) {
+        (ArchivedPkceCodeChallenge::None, None) => true,
+        (ArchivedPkceCodeChallenge::Plain(expected), Some(verifier))
+            if is_valid_pkce_challenge(verifier) =>
+        {
+            constant_time_eq(expected.as_bytes(), verifier.as_bytes())
+        }
+        (ArchivedPkceCodeChallenge::S256(expected), Some(verifier))
+            if is_valid_pkce_challenge(verifier) =>
+        {
+            let digest = Sha256::digest(verifier.as_bytes());
+            let computed = URL_SAFE_NO_PAD.encode(digest);
+            constant_time_eq(expected.as_bytes(), computed.as_bytes())
+        }
+        _ => false,
     }
 }

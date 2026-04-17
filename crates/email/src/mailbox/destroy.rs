@@ -12,15 +12,15 @@ use crate::{
 use common::{
     Server, auth::AccessToken, sharing::EffectiveAcl, storage::index::ObjectIndexBuilder,
 };
-use store::{
-    SerializeInfallible,
-    roaring::RoaringBitmap,
-    write::{BatchBuilder, SearchIndex, TaskEpoch, TaskQueueClass, ValueClass},
+use registry::schema::{
+    enums::IndexDocumentType,
+    structs::{Task, TaskIndexDocument, TaskStatus},
 };
 use store::{
     ValueKey,
     write::{AlignedBytes, Archive},
 };
+use store::{roaring::RoaringBitmap, write::BatchBuilder};
 use trc::AddContext;
 use types::{
     acl::Acl,
@@ -119,18 +119,16 @@ impl MailboxDestroy for Server {
                                 .with_document(message_id)
                                 .custom(
                                     ObjectIndexBuilder::<_, ()>::new()
-                                        .with_access_token(access_token)
+                                        .with_changed_by(access_token.account_tenant_ids())
                                         .with_current(prev_message_data),
                                 )
                                 .caused_by(trc::location!())?
-                                .set(
-                                    ValueClass::TaskQueue(TaskQueueClass::UpdateIndex {
-                                        index: SearchIndex::Email,
-                                        due: TaskEpoch::now(),
-                                        is_insert: false,
-                                    }),
-                                    0u64.serialize(),
-                                )
+                                .schedule_task(Task::UnindexDocument(TaskIndexDocument {
+                                    account_id: account_id.into(),
+                                    document_id: message_id.into(),
+                                    document_type: IndexDocumentType::Email,
+                                    status: TaskStatus::now(),
+                                }))
                                 .commit_point();
                         } else {
                             let new_message_data = MessageData {
@@ -157,7 +155,7 @@ impl MailboxDestroy for Server {
                                 .with_document(message_id)
                                 .custom(
                                     ObjectIndexBuilder::new()
-                                        .with_access_token(access_token)
+                                        .with_changed_by(access_token.account_tenant_ids())
                                         .with_changes(new_message_data)
                                         .with_current(prev_message_data),
                                 )

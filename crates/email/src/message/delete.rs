@@ -5,14 +5,14 @@
  */
 
 use super::metadata::MessageData;
-use common::{KV_LOCK_PURGE_ACCOUNT, Server, storage::index::ObjectIndexBuilder};
-use directory::backend::internal::manage::ManageDirectory;
+use common::{Server, storage::index::ObjectIndexBuilder};
 use groupware::calendar::storage::ItipAutoExpunge;
+use registry::schema::enums::IndexDocumentType;
+use registry::schema::structs::{Task, TaskIndexDocument, TaskStatus};
 use std::future::Future;
-use store::rand::prelude::SliceRandom;
 use store::write::key::DeserializeBigEndian;
-use store::write::{IndexPropertyClass, SearchIndex, TaskEpoch, TaskQueueClass, now};
-use store::{IterateParams, SerializeInfallible, U32_LEN, U64_LEN, ValueKey};
+use store::write::{IndexPropertyClass, now};
+use store::{IterateParams, U32_LEN, U64_LEN, ValueKey};
 use store::{
     roaring::RoaringBitmap,
     write::{BatchBuilder, ValueClass},
@@ -30,9 +30,7 @@ pub trait EmailDeletion: Sync + Send {
         document_ids: RoaringBitmap,
     ) -> impl Future<Output = trc::Result<RoaringBitmap>> + Send;
 
-    fn purge_accounts(&self, use_roles: bool) -> impl Future<Output = ()> + Send;
-
-    fn purge_account(&self, account_id: u32) -> impl Future<Output = ()> + Send;
+    fn purge_account(&self, account_id: u32) -> impl Future<Output = trc::Result<()>> + Send;
 
     fn purge_email_submissions(
         &self,
@@ -82,14 +80,12 @@ impl EmailDeletion for Server {
                             .with_current(metadata),
                     )
                     .caused_by(trc::location!())?
-                    .set(
-                        ValueClass::TaskQueue(TaskQueueClass::UpdateIndex {
-                            index: SearchIndex::Email,
-                            due: TaskEpoch::now(),
-                            is_insert: false,
-                        }),
-                        0u64.serialize(),
-                    )
+                    .schedule_task(Task::UnindexDocument(TaskIndexDocument {
+                        account_id: account_id.into(),
+                        document_id: document_id.into(),
+                        document_type: IndexDocumentType::Email,
+                        status: TaskStatus::now(),
+                    }))
                     .commit_point();
 
                 deleted_ids.insert(document_id);
@@ -109,106 +105,38 @@ impl EmailDeletion for Server {
         Ok(not_destroyed)
     }
 
-    async fn purge_accounts(&self, use_roles: bool) {
-        if let Ok(account_ids) = self.store().principal_ids(None, None).await {
-            let mut account_ids: Vec<u32> = account_ids
-                .into_iter()
-                .filter(|id| {
-                    !use_roles
-                        || self
-                            .core
-                            .network
-                            .roles
-                            .purge_accounts
-                            .is_enabled_for_integer(*id)
-                })
-                .collect();
-
-            // Shuffle account ids
-            account_ids.shuffle(&mut store::rand::rng());
-
-            for account_id in account_ids {
-                self.purge_account(account_id).await;
-            }
-        }
-    }
-
-    async fn purge_account(&self, account_id: u32) {
-        // Lock account
-        match self
-            .core
-            .storage
-            .lookup
-            .try_lock(KV_LOCK_PURGE_ACCOUNT, &account_id.to_be_bytes(), 3600)
-            .await
-        {
-            Ok(true) => (),
-            Ok(false) => {
-                trc::event!(Purge(trc::PurgeEvent::InProgress), AccountId = account_id,);
-                return;
-            }
-            Err(err) => {
-                trc::error!(
-                    err.details("Failed to lock account.")
-                        .account_id(account_id)
-                );
-                return;
-            }
-        }
-
+    async fn purge_account(&self, account_id: u32) -> trc::Result<()> {
         // Auto-expunge deleted and junk messages
-        if let Some(hold_period) = self.core.jmap.mail_autoexpunge_after
-            && let Err(err) = self.emails_auto_expunge(account_id, hold_period).await
-        {
-            trc::error!(
-                err.details("Failed to auto-expunge e-mail messages.")
-                    .account_id(account_id)
-            );
+        if let Some(hold_period) = self.core.email.mail_autoexpunge_after {
+            self.emails_auto_expunge(account_id, hold_period)
+                .await
+                .caused_by(trc::location!())?;
         }
 
         // Auto-expunge iMIP messages
-        if let Some(hold_period) = self.core.groupware.itip_inbox_auto_expunge
-            && let Err(err) = self.itip_auto_expunge(account_id, hold_period).await
-        {
-            trc::error!(
-                err.details("Failed to auto-expunge iTIP messages.")
-                    .account_id(account_id)
-            );
+        if let Some(hold_period) = self.core.groupware.itip_inbox_auto_expunge {
+            self.itip_auto_expunge(account_id, hold_period)
+                .await
+                .caused_by(trc::location!())?;
         }
 
         // Delete old e-mail submissions
-        if let Some(hold_period) = self.core.jmap.email_submission_autoexpunge_after
-            && let Err(err) = self.purge_email_submissions(account_id, hold_period).await
-        {
-            trc::error!(
-                err.details("Failed to auto-expunge e-mail submissions.")
-                    .account_id(account_id)
-            );
+        if let Some(hold_period) = self.core.email.email_submission_autoexpunge_after {
+            self.purge_email_submissions(account_id, hold_period)
+                .await
+                .caused_by(trc::location!())?;
         }
 
         // Purge changelogs
-        if let Err(err) = self
-            .delete_changes(
-                account_id,
-                self.core.jmap.changes_max_history,
-                self.core.jmap.share_notification_max_history,
-            )
-            .await
-        {
-            trc::error!(
-                err.details("Failed to purge changes.")
-                    .account_id(account_id)
-            );
-        }
+        self.delete_changes(
+            account_id,
+            self.core.email.changes_max_history,
+            self.core.email.share_notification_max_history,
+        )
+        .await
+        .caused_by(trc::location!())?;
 
-        // Delete lock
-        if let Err(err) = self
-            .in_memory_store()
-            .remove_lock(KV_LOCK_PURGE_ACCOUNT, &account_id.to_be_bytes())
-            .await
-        {
-            trc::error!(err.details("Failed to delete lock.").account_id(account_id));
-        }
+        Ok(())
     }
 
     async fn emails_auto_expunge(&self, account_id: u32, hold_period: u64) -> trc::Result<()> {
@@ -249,7 +177,7 @@ impl EmailDeletion for Server {
         }
 
         trc::event!(
-            Purge(trc::PurgeEvent::AutoExpunge),
+            Store(trc::StoreEvent::AutoExpunge),
             Collection = Collection::Email.as_str(),
             AccountId = account_id,
             Total = destroy_ids.len(),
@@ -258,11 +186,10 @@ impl EmailDeletion for Server {
         // Delete messages
         let mut batch = BatchBuilder::new();
         let tenant_id = self
-            .store()
-            .get_principal(account_id)
+            .account(account_id)
             .await
             .caused_by(trc::location!())?
-            .and_then(|p| p.tenant());
+            .tenant_id();
         self.emails_delete(account_id, tenant_id, &mut batch, destroy_ids)
             .await?;
         self.commit_batch(batch).await?;
@@ -315,7 +242,7 @@ impl EmailDeletion for Server {
         }
 
         trc::event!(
-            Purge(trc::PurgeEvent::AutoExpunge),
+            Store(trc::StoreEvent::AutoExpunge),
             Collection = Collection::EmailSubmission.as_str(),
             AccountId = account_id,
             Total = destroy_ids.len(),

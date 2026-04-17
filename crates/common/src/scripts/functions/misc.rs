@@ -10,6 +10,7 @@ use mail_auth::common::resolver::ToReverseName;
 use sha1::Sha1;
 use sha2::{Sha256, Sha512};
 use sieve::{Context, runtime::Variable};
+use utils::HexEncode;
 
 use super::ApplyString;
 
@@ -78,17 +79,17 @@ pub fn fn_hash<'x>(_: &'x Context<'x>, v: Vec<Variable>) -> Variable {
         "sha1" => {
             let mut hasher = Sha1::new();
             hasher.update(value.as_bytes());
-            format!("{:x}", hasher.finalize()).into()
+            hasher.finalize().hex_encode().into()
         }
         "sha256" => {
             let mut hasher = Sha256::new();
             hasher.update(value.as_bytes());
-            format!("{:x}", hasher.finalize()).into()
+            hasher.finalize().hex_encode().into()
         }
         "sha512" => {
             let mut hasher = Sha512::new();
             hasher.update(value.as_bytes());
-            format!("{:x}", hasher.finalize()).into()
+            hasher.finalize().hex_encode().into()
         }
         _ => Variable::default(),
     })

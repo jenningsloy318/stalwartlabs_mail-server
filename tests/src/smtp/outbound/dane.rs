@@ -4,29 +4,27 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::smtp::{
-    DnsCache, TestSMTP,
-    inbound::{TestMessage, TestQueueEvent, TestReportingEvent},
-    session::{TestSession, VerifyResponse},
+use crate::{
+    smtp::{
+        inbound::{TestMessage, TestQueueEvent, TestReportingEvent},
+        session::{TestSession, VerifyResponse},
+    },
+    utils::{dns::DnsCache, server::TestServerBuilder},
 };
 use common::{
-    Core,
-    config::{
-        server::ServerProtocol,
-        smtp::resolver::{DnssecResolver, Resolvers, Tlsa, TlsaEntry},
-    },
+    config::smtp::resolver::{Tlsa, TlsaEntry},
     ipc::PolicyType,
 };
 use mail_auth::{
-    MX, MessageAuthenticator,
+    MX,
     common::parse::TxtRecordParser,
-    hickory_resolver::{
-        TokioResolver,
-        config::{ResolverConfig, ResolverOpts},
-        name_server::TokioConnectionProvider,
-    },
     mta_sts::{ReportUri, TlsRpt},
     report::tlsrpt::ResultType,
+};
+use registry::schema::{
+    enums::MtaRequiredOrOptional,
+    prelude::ObjectType,
+    structs::{Expression, MtaTlsStrategy, TlsReportSettings},
 };
 use rustls_pki_types::CertificateDer;
 use smtp::outbound::dane::{dnssec::TlsaLookup, verify::TlsaVerify};
@@ -41,71 +39,93 @@ use std::{
     time::{Duration, Instant},
 };
 
-const LOCAL: &str = r#"
-[session.rcpt]
-relay = true
-
-[report.tls.aggregate]
-send = "weekly"
-
-[queue.tls.default]
-dane = "require"
-starttls = "require"
-
-"#;
-
-const REMOTE: &str = "
-[session.ehlo]
-reject-non-fqdn = false
-
-[session.rcpt]
-relay = true
-
-[session.data.add-headers]
-received = true
-received-spf = true
-auth-results = true
-message-id = true
-date = true
-return-path = false
-
-";
-
 #[tokio::test]
 #[serial_test::serial]
 async fn dane_verify() {
-    // Enable logging
-    crate::enable_logging();
+    let mut local = TestServerBuilder::new("smtp_dane_local")
+        .await
+        .with_http_listener(19018)
+        .await
+        .disable_services()
+        .capture_queue()
+        .capture_reporting()
+        .build()
+        .await;
+    let mut remote = TestServerBuilder::new("smtp_dane_remote")
+        .await
+        .with_dummy_tls_cert(["*.foobar.org"])
+        .await
+        .with_http_listener(19019)
+        .await
+        .with_smtp_listener(9925)
+        .await
+        .disable_services()
+        .capture_queue()
+        .build()
+        .await;
 
-    // Start test server
-    let mut remote = TestSMTP::new("smtp_dane_remote", REMOTE).await;
-    let _rx = remote.start(&[ServerProtocol::Smtp]).await;
+    let local_admin = local.account("admin");
+    local_admin.mta_allow_relaying().await;
+    local_admin.mta_no_auth().await;
+    local_admin
+        .registry_create_object(TlsReportSettings {
+            send_frequency: Expression {
+                else_: "weekly".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .await;
+    let (tls_strategy_id, mut tls_strategy) = local_admin
+        .registry_get_all::<MtaTlsStrategy>()
+        .await
+        .into_iter()
+        .find(|(_, s)| s.name == "default")
+        .unwrap();
+    tls_strategy.dane = MtaRequiredOrOptional::Require;
+    tls_strategy.start_tls = MtaRequiredOrOptional::Require;
+    let mut tls_strategy = serde_json::to_value(tls_strategy).unwrap();
+    tls_strategy
+        .as_object_mut()
+        .unwrap()
+        .retain(|k, _| k != "name");
+    local_admin
+        .registry_update_object(ObjectType::MtaTlsStrategy, tls_strategy_id, tls_strategy)
+        .await;
+    local_admin.reload_settings().await;
+    local.reload_core();
+    local.expect_reload_settings().await;
 
-    // Fail on missing TLSA record
-    let mut local = TestSMTP::new("smtp_dane_local", LOCAL).await;
+    let remote_admin = remote.account("admin");
+    remote_admin.mta_no_auth().await;
+    remote_admin.mta_allow_relaying().await;
+    remote_admin.mta_add_all_headers().await;
+    remote_admin.mta_allow_non_fqdn().await;
+    remote_admin.reload_settings().await;
+    remote.reload_core();
+    remote.expect_reload_settings().await;
 
     // Add mock DNS entries
-    let core = local.build_smtp();
-    core.mx_add(
+    local.server.mx_add(
         "foobar.org",
         vec![MX {
-            exchanges: vec!["mx.foobar.org".to_string()],
+            exchanges: vec!["mx.foobar.org".into()].into_boxed_slice(),
             preference: 10,
         }],
         Instant::now() + Duration::from_secs(10),
     );
-    core.ipv4_add(
+    local.server.ipv4_add(
         "mx.foobar.org",
         vec!["127.0.0.1".parse().unwrap()],
         Instant::now() + Duration::from_secs(10),
     );
-    core.txt_add(
+    local.server.txt_add(
         "_smtp._tls.foobar.org",
         TlsRpt::parse(b"v=TLSRPTv1; rua=mailto:reports@foobar.org").unwrap(),
         Instant::now() + Duration::from_secs(10),
     );
 
-    let mut session = local.new_session();
+    let mut session = local.new_mta_session();
     session.data.remote_ip_str = "10.0.0.1".into();
     session.eval_session_params().await;
     session.ehlo("mx.test.org").await;
@@ -113,24 +133,22 @@ async fn dane_verify() {
         .send_message("john@test.org", &["bill@foobar.org"], "test:no_dkim", "250")
         .await;
     local
-        .queue_receiver
         .expect_message_then_deliver()
         .await
-        .try_deliver(core.clone());
+        .try_deliver(local.server.clone());
     local
-        .queue_receiver
         .expect_message()
         .await
-        .read_lines(&local.queue_receiver)
+        .read_lines(&local)
         .await
         .assert_contains("<bill@foobar.org> (DANE failed to authenticate")
         .assert_contains("No TLSA reco=")
         .assert_contains("rds found");
-    local.queue_receiver.read_event().await.assert_done();
-    local.queue_receiver.assert_no_events();
+    local.read_event().await.assert_done();
+    local.assert_no_events();
 
     // Expect TLS failure report
-    let report = local.report_receiver.read_report().await.unwrap_tls();
+    let report = local.read_report().await.unwrap_tls();
     assert_eq!(report.domain, "foobar.org");
     assert_eq!(report.policy, PolicyType::Tlsa(None));
     assert_eq!(
@@ -157,7 +175,7 @@ async fn dane_verify() {
         has_end_entities: true,
         has_intermediates: false,
     });
-    core.tlsa_add(
+    local.server.tlsa_add(
         "_25._tcp.mx.foobar.org",
         tlsa.clone(),
         Instant::now() + Duration::from_secs(10),
@@ -166,30 +184,28 @@ async fn dane_verify() {
         .send_message("john@test.org", &["bill@foobar.org"], "test:no_dkim", "250")
         .await;
     local
-        .queue_receiver
         .expect_message_then_deliver()
         .await
-        .try_deliver(core.clone());
+        .try_deliver(local.server.clone());
     local
-        .queue_receiver
         .expect_message()
         .await
-        .read_lines(&local.queue_receiver)
+        .read_lines(&local)
         .await
         .assert_contains("<bill@foobar.org> (DANE failed to authenticate")
         .assert_contains("No matching ")
         .assert_contains("certificates found");
-    local.queue_receiver.read_event().await.assert_done();
-    local.queue_receiver.assert_no_events();
+    local.read_event().await.assert_done();
+    local.assert_no_events();
 
     // Expect TLS failure report
-    let report = local.report_receiver.read_report().await.unwrap_tls();
+    let report = local.read_report().await.unwrap_tls();
     assert_eq!(report.policy, PolicyType::Tlsa(tlsa.into()));
     assert_eq!(
         report.failure.as_ref().unwrap().result_type,
         ResultType::ValidationFailure
     );
-    remote.queue_receiver.assert_no_events();
+    remote.assert_no_events();
 
     // DANE successful delivery
     let tlsa = Arc::new(Tlsa {
@@ -205,7 +221,7 @@ async fn dane_verify() {
         has_end_entities: true,
         has_intermediates: false,
     });
-    core.tlsa_add(
+    local.server.tlsa_add(
         "_25._tcp.mx.foobar.org",
         tlsa.clone(),
         Instant::now() + Duration::from_secs(10),
@@ -214,43 +230,33 @@ async fn dane_verify() {
         .send_message("john@test.org", &["bill@foobar.org"], "test:no_dkim", "250")
         .await;
     local
-        .queue_receiver
         .expect_message_then_deliver()
         .await
-        .try_deliver(core.clone());
-    local.queue_receiver.read_event().await.assert_done();
-    local.queue_receiver.assert_no_events();
+        .try_deliver(local.server.clone());
+    local.read_event().await.assert_done();
+    local.assert_no_events();
     remote
-        .queue_receiver
         .expect_message()
         .await
-        .read_lines(&remote.queue_receiver)
+        .read_lines(&remote)
         .await
         .assert_contains("using TLSv1.3 with cipher");
 
     // Expect TLS success report
-    let report = local.report_receiver.read_report().await.unwrap_tls();
+    let report = local.read_report().await.unwrap_tls();
     assert_eq!(report.policy, PolicyType::Tlsa(tlsa.into()));
     assert!(report.failure.is_none());
 }
 
 #[tokio::test]
 async fn dane_test() {
-    let conf = ResolverConfig::cloudflare_tls();
-    let mut opts = ResolverOpts::default();
-    opts.validate = true;
-    opts.try_tcp_on_error = true;
-
-    let mut core = Core::default();
-    core.smtp.resolvers = Resolvers {
-        dns: MessageAuthenticator::new_cloudflare().unwrap(),
-        dnssec: DnssecResolver {
-            resolver: TokioResolver::builder_with_config(conf, TokioConnectionProvider::default())
-                .with_options(opts)
-                .build(),
-        },
-    };
-    let r = TestSMTP::from_core(core).build_smtp();
+    let test = TestServerBuilder::new("smtp_dane_remote")
+        .await
+        .with_http_listener(19036)
+        .await
+        .disable_services()
+        .build()
+        .await;
 
     // Add dns entries
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -275,7 +281,7 @@ async fn dane_test() {
             match pos {
                 0 => {
                     if hostname != item && !hostname.is_empty() {
-                        r.tlsa_add(
+                        test.server.tlsa_add(
                             hostname,
                             tlsa.into(),
                             Instant::now() + Duration::from_secs(30),
@@ -309,7 +315,7 @@ async fn dane_test() {
             }
         }
     }
-    r.tlsa_add(
+    test.server.tlsa_add(
         hostname,
         tlsa.into(),
         Instant::now() + Duration::from_secs(30),
@@ -331,7 +337,8 @@ async fn dane_test() {
         }
 
         // Successful DANE verification
-        let tlsa = r
+        let tlsa = test
+            .server
             .tlsa_lookup(format!("_25._tcp.{host}."))
             .await
             .unwrap()

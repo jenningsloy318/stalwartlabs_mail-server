@@ -10,6 +10,7 @@ use crate::outbound::client::{
     SmtpClient, from_error_details, from_error_status, from_mail_send_error,
 };
 use crate::outbound::dane::dnssec::TlsaLookup;
+use crate::outbound::error::ClientError;
 use crate::outbound::lookup::{DnsLookup, SourceIp};
 use crate::outbound::mta_sts::lookup::MtaStsLookup;
 use crate::outbound::mta_sts::verify::VerifyPolicy;
@@ -20,7 +21,7 @@ use crate::queue::throttle::IsAllowed;
 use crate::queue::{
     Error, FROM_REPORT, HostResponse, MessageWrapper, QueueEnvelope, QueuedMessage, Status,
 };
-use crate::reporting::SmtpReporting;
+use crate::reporting::send::MtaReportSend;
 use crate::{queue::ErrorDetails, reporting::tls::TlsRptOptions};
 use ahash::AHashMap;
 use common::Server;
@@ -187,7 +188,7 @@ impl QueuedMessage {
             {
                 trc::event!(
                     Delivery(DeliveryEvent::RateLimitExceeded),
-                    Id = throttle.id.clone(),
+                    Id = throttle.id.to_string(),
                     SpanId = span_id,
                     NextRetry = trc::Value::Timestamp(retry_at)
                 );
@@ -262,7 +263,7 @@ impl QueuedMessage {
                 {
                     trc::event!(
                         Delivery(DeliveryEvent::RateLimitExceeded),
-                        Id = throttle.id.clone(),
+                        Id = throttle.id.to_string(),
                         SpanId = span_id,
                         Domain = domain.to_string(),
                     );
@@ -411,6 +412,7 @@ impl QueuedMessage {
                                                 .into(),
                                             tls_record: tls_report.record.clone(),
                                             interval: tls_report.interval,
+                                            span_id: message.span_id,
                                         })
                                         .await;
                                     }
@@ -426,6 +428,7 @@ impl QueuedMessage {
                                                 .into(),
                                             tls_record: tls_report.record.clone(),
                                             interval: tls_report.interval,
+                                            span_id: message.span_id,
                                         })
                                         .await;
                                 }
@@ -512,7 +515,7 @@ impl QueuedMessage {
                             Elapsed = time.elapsed(),
                         );
 
-                        Arc::new(vec![])
+                        Arc::new([])
                     }
                     Err(err) => {
                         trc::event!(
@@ -584,6 +587,7 @@ impl QueuedMessage {
                                         .into(),
                                     tls_record: tls_report.record.clone(),
                                     interval: tls_report.interval,
+                                    span_id: message.span_id,
                                 })
                                 .await;
                         }
@@ -715,6 +719,7 @@ impl QueuedMessage {
                                                 .into(),
                                             tls_record: tls_report.record.clone(),
                                             interval: tls_report.interval,
+                                            span_id: message.span_id,
                                         })
                                         .await;
                                 }
@@ -756,6 +761,7 @@ impl QueuedMessage {
                                                 .into(),
                                             tls_record: tls_report.record.clone(),
                                             interval: tls_report.interval,
+                                            span_id: message.span_id,
                                         })
                                         .await;
                                 }
@@ -812,6 +818,7 @@ impl QueuedMessage {
                                                 .into(),
                                                 tls_record: tls_report.record.clone(),
                                                 interval: tls_report.interval,
+                                                span_id: message.span_id,
                                             })
                                             .await;
                                     }
@@ -844,7 +851,7 @@ impl QueuedMessage {
                             trc::event!(
                                 Delivery(DeliveryEvent::RateLimitExceeded),
                                 SpanId = message.span_id,
-                                Id = throttle.id.clone(),
+                                Id = throttle.id.to_string(),
                                 RemoteIp = remote_ip,
                             );
                             delivery_results
@@ -1054,6 +1061,7 @@ impl QueuedMessage {
                                                     .into(),
                                                     tls_record: tls_report.record.clone(),
                                                     interval: tls_report.interval,
+                                                    span_id: message.span_id,
                                                 })
                                                 .await;
                                         }
@@ -1071,6 +1079,7 @@ impl QueuedMessage {
                                                 failure: None,
                                                 tls_record: tls_report.record.clone(),
                                                 interval: tls_report.interval,
+                                                span_id: message.span_id,
                                             })
                                             .await;
                                     }
@@ -1123,6 +1132,7 @@ impl QueuedMessage {
                                                 .into(),
                                                 tls_record: tls_report.record.clone(),
                                                 interval: tls_report.interval,
+                                                span_id: message.span_id,
                                             })
                                             .await;
                                     }
@@ -1155,7 +1165,7 @@ impl QueuedMessage {
                                     );
 
                                     // Report TLS failure
-                                    if let (Some(tls_report), mail_send::Error::Tls(error)) =
+                                    if let (Some(tls_report), ClientError::Tls(error)) =
                                         (&tls_report, &error)
                                     {
                                         server
@@ -1171,6 +1181,7 @@ impl QueuedMessage {
                                                 .into(),
                                                 tls_record: tls_report.record.clone(),
                                                 interval: tls_report.interval,
+                                                span_id: message.span_id,
                                             })
                                             .await;
                                     }

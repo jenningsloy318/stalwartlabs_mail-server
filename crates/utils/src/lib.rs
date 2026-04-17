@@ -9,23 +9,22 @@ pub mod cache;
 pub mod chained_bytes;
 pub mod cheeky_hash;
 pub mod codec;
-pub mod config;
+pub mod cron;
 pub mod glob;
+pub mod http;
 pub mod map;
 pub mod snowflake;
 pub mod template;
+pub mod tls;
 pub mod topological;
 pub mod url_params;
 
 use compact_str::ToCompactString;
 use futures::StreamExt;
+pub use reqwest::Client;
 use reqwest::Response;
-use rustls::{
-    ClientConfig, RootCertStore, SignatureScheme,
-    client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-};
-use rustls_pki_types::TrustAnchor;
-use std::sync::Arc;
+pub use reqwest::header::HeaderMap;
+use std::fmt::Write;
 
 pub trait HttpLimitResponse: Sync + Send {
     fn bytes_with_limit(
@@ -143,29 +142,6 @@ pub async fn wait_for_shutdown() {
     trc::event!(Server(trc::ServerEvent::Shutdown), CausedBy = signal);
 }
 
-pub fn rustls_client_config(allow_invalid_certs: bool) -> ClientConfig {
-    let config = ClientConfig::builder();
-
-    if !allow_invalid_certs {
-        let mut root_cert_store = RootCertStore::empty();
-
-        root_cert_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().map(|ta| TrustAnchor {
-            subject: ta.subject.clone(),
-            subject_public_key_info: ta.subject_public_key_info.clone(),
-            name_constraints: ta.name_constraints.clone(),
-        }));
-
-        config
-            .with_root_certificates(root_cert_store)
-            .with_no_client_auth()
-    } else {
-        config
-            .dangerous()
-            .with_custom_certificate_verifier(Arc::new(DummyVerifier {}))
-            .with_no_client_auth()
-    }
-}
-
 pub trait DomainPart {
     fn to_lowercase_domain(&self) -> String;
     fn domain_part(&self) -> &str;
@@ -210,78 +186,149 @@ impl<T: AsRef<str>> DomainPart for T {
     }
 }
 
-#[derive(Debug)]
-struct DummyVerifier;
+pub trait HexEncode {
+    fn hex_encode(&self) -> String;
+}
 
-impl ServerCertVerifier for DummyVerifier {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &rustls_pki_types::CertificateDer<'_>,
-        _intermediates: &[rustls_pki_types::CertificateDer<'_>],
-        _server_name: &rustls_pki_types::ServerName<'_>,
-        _ocsp_response: &[u8],
-        _now: rustls_pki_types::UnixTime,
-    ) -> Result<ServerCertVerified, rustls::Error> {
-        Ok(ServerCertVerified::assertion())
-    }
-
-    fn verify_tls12_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls_pki_types::CertificateDer<'_>,
-        _dss: &rustls::DigitallySignedStruct,
-    ) -> Result<HandshakeSignatureValid, rustls::Error> {
-        Ok(HandshakeSignatureValid::assertion())
-    }
-
-    fn verify_tls13_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls_pki_types::CertificateDer<'_>,
-        _dss: &rustls::DigitallySignedStruct,
-    ) -> Result<HandshakeSignatureValid, rustls::Error> {
-        Ok(HandshakeSignatureValid::assertion())
-    }
-
-    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        vec![
-            SignatureScheme::RSA_PKCS1_SHA1,
-            SignatureScheme::ECDSA_SHA1_Legacy,
-            SignatureScheme::RSA_PKCS1_SHA256,
-            SignatureScheme::ECDSA_NISTP256_SHA256,
-            SignatureScheme::RSA_PKCS1_SHA384,
-            SignatureScheme::ECDSA_NISTP384_SHA384,
-            SignatureScheme::RSA_PKCS1_SHA512,
-            SignatureScheme::ECDSA_NISTP521_SHA512,
-            SignatureScheme::RSA_PSS_SHA256,
-            SignatureScheme::RSA_PSS_SHA384,
-            SignatureScheme::RSA_PSS_SHA512,
-            SignatureScheme::ED25519,
-            SignatureScheme::ED448,
-        ]
+impl<T: AsRef<[u8]>> HexEncode for T {
+    fn hex_encode(&self) -> String {
+        let bytes = self.as_ref();
+        let mut s = String::with_capacity(bytes.len() * 2);
+        for &b in bytes {
+            let _ = write!(&mut s, "{b:02x}");
+        }
+        s
     }
 }
+
+static NIL_CHAR: char = char::from_u32(0).unwrap();
 
 // Basic email sanitizer
 pub fn sanitize_email(email: &str) -> Option<String> {
     let mut result = String::with_capacity(email.len());
-    let mut found_local = false;
-    let mut found_domain = false;
-    let mut last_ch = char::from(0);
+    let mut last_ch = NIL_CHAR;
+    let mut chars = email.chars();
 
-    for ch in email.chars() {
-        if !ch.is_whitespace() {
-            if ch == '@' {
-                if !result.is_empty() && !found_local {
-                    found_local = true;
+    for ch in chars.by_ref() {
+        match ch {
+            '.' | '+' | '-' | '_' => {
+                if !last_ch.is_alphanumeric() {
+                    return None;
+                }
+                result.push(ch);
+            }
+            ' ' | '\x09'..='\x0d' => continue,
+            '@' => {
+                if result.is_empty() || last_ch == '.' {
+                    return None;
+                }
+                last_ch = ch;
+                result.push(ch);
+                break;
+            }
+            _ => {
+                if ch.is_uppercase() {
+                    for ch in ch.to_lowercase() {
+                        result.push(ch);
+                    }
+                } else if ch.is_alphanumeric() {
+                    result.push(ch);
                 } else {
                     return None;
                 }
-            } else if ch == '.' {
+            }
+        }
+
+        last_ch = ch;
+    }
+
+    if last_ch != '@' {
+        return None;
+    }
+
+    last_ch = NIL_CHAR;
+
+    for ch in chars {
+        match ch {
+            '.' | '-' | '_' => {
+                if !last_ch.is_alphanumeric() {
+                    return None;
+                }
+                result.push(ch);
+            }
+            ' ' | '\x09'..='\x0d' => continue,
+            _ => {
+                if ch.is_uppercase() {
+                    for ch in ch.to_lowercase() {
+                        result.push(ch);
+                    }
+                } else if ch.is_alphanumeric() {
+                    result.push(ch);
+                } else {
+                    return None;
+                }
+            }
+        }
+
+        last_ch = ch;
+    }
+
+    if last_ch.is_alphanumeric()
+        && psl::domain(result.as_bytes()).is_some_and(|d| d.suffix().typ().is_some())
+    {
+        Some(result)
+    } else {
+        None
+    }
+}
+
+pub fn sanitize_email_local(local: &str) -> Option<String> {
+    let mut result = String::with_capacity(local.len());
+    let mut last_ch = NIL_CHAR;
+
+    for ch in local.chars() {
+        match ch {
+            '.' | '+' | '-' | '_' => {
+                if !last_ch.is_alphanumeric() {
+                    return None;
+                }
+                result.push(ch);
+            }
+            ' ' | '\x09'..='\x0d' => continue,
+            _ => {
+                if ch.is_uppercase() {
+                    for ch in ch.to_lowercase() {
+                        result.push(ch);
+                    }
+                } else if ch.is_alphanumeric() {
+                    result.push(ch);
+                } else {
+                    return None;
+                }
+            }
+        }
+
+        last_ch = ch;
+    }
+
+    if !result.is_empty() && last_ch != '.' {
+        Some(result)
+    } else {
+        None
+    }
+}
+
+pub fn sanitize_domain(domain: &str) -> Option<String> {
+    let mut result = String::with_capacity(domain.len());
+    let mut found_dot = false;
+    let mut last_ch = char::from(0);
+
+    for ch in domain.chars() {
+        if !ch.is_whitespace() {
+            if ch == '.' {
+                found_dot = true;
                 if !(last_ch.is_alphanumeric() || last_ch == '-' || last_ch == '_') {
                     return None;
-                } else if found_local {
-                    found_domain = true;
                 }
             }
             last_ch = ch;
@@ -291,7 +338,7 @@ pub fn sanitize_email(email: &str) -> Option<String> {
         }
     }
 
-    if found_domain
+    if found_dot
         && last_ch != '.'
         && psl::domain(result.as_bytes()).is_some_and(|d| d.suffix().typ().is_some())
     {

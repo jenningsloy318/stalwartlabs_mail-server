@@ -97,17 +97,19 @@ impl EmailSet for Server {
             };
 
         // Obtain import access token
-        let import_access_token = if account_id != access_token.primary_id() {
+        let import_access_token = if account_id != access_token.account_id() {
             #[cfg(feature = "test_mode")]
             {
-                std::sync::Arc::new(AccessToken::from_id(account_id)).into()
+                AccessToken::from_id_maybe_invalid(account_id).into()
             }
 
             #[cfg(not(feature = "test_mode"))]
             {
-                self.get_access_token(account_id)
+                use common::auth::BuildAccessToken;
+                self.access_token(account_id)
                     .await
                     .caused_by(trc::location!())?
+                    .build()
                     .into()
             }
         } else {
@@ -154,7 +156,7 @@ impl EmailSet for Server {
 
             // Parse properties
             for (property, mut value) in object.into_vec() {
-                if let Err(err) = response.resolve_self_references(&mut value) {
+                if let Err(err) = response.resolve_self_references(&mut value, 0, false) {
                     response.not_created.append(id, err);
                     continue 'create;
                 };
@@ -613,9 +615,9 @@ impl EmailSet for Server {
                                 // Check attachment sizes
                                 if !is_multipart {
                                     size_attachments += parts.last().unwrap().size();
-                                    if self.core.jmap.mail_attachments_max_size > 0
+                                    if self.core.email.mail_attachments_max_size > 0
                                         && size_attachments
-                                            > self.core.jmap.mail_attachments_max_size
+                                            > self.core.email.mail_attachments_max_size
                                     {
                                         response.not_created.append(
                                             id,
@@ -623,7 +625,7 @@ impl EmailSet for Server {
                                                 .with_property(property)
                                                 .with_description(format!(
                                                     "Message exceeds maximum size of {} bytes.",
-                                                    self.core.jmap.mail_attachments_max_size
+                                                    self.core.email.mail_attachments_max_size
                                                 )),
                                         );
                                         continue 'create;
@@ -758,7 +760,7 @@ impl EmailSet for Server {
                     raw_message: &raw_message,
                     message: MessageParser::new().parse(&raw_message),
                     blob_hash: None,
-                    access_token: import_access_token.as_deref().unwrap_or(access_token),
+                    access_token: import_access_token.as_ref().unwrap_or(access_token),
                     mailbox_ids: mailboxes,
                     keywords,
                     received_at,
@@ -820,7 +822,7 @@ impl EmailSet for Server {
             let mut new_data = data.inner.to_builder();
 
             for (property, mut value) in object.into_expanded_object() {
-                if let Err(err) = response.resolve_self_references(&mut value) {
+                if let Err(err) = response.resolve_self_references(&mut value, 0, false) {
                     response.not_updated.append(id, err);
                     continue 'update;
                 };

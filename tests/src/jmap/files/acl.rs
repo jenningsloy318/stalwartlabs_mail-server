@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::jmap::{JMAPTest, JmapUtils};
+use crate::utils::{jmap::JmapUtils, server::TestServer};
 use jmap_proto::{
     object::{file_node::FileNodeProperty, share_notification::ShareNotificationProperty},
     request::method::MethodObject,
 };
 use serde_json::json;
 
-pub async fn test(params: &mut JMAPTest) {
+pub async fn test(test: &TestServer) {
     println!("Running File Storage ACL tests...");
-    let john = params.account("jdoe@example.com");
-    let jane = params.account("jane.smith@example.com");
+    let john = test.account("jdoe@example.com");
+    let jane = test.account("jane.smith@example.com");
     let john_id = john.id_string().to_string();
     let jane_id = jane.id_string().to_string();
 
@@ -460,5 +460,5 @@ pub async fn test(params: &mut JMAPTest) {
     );
 
     // Destroy all mailboxes
-    params.assert_is_empty().await;
+    test.assert_is_empty().await;
 }

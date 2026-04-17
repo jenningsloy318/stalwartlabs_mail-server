@@ -71,7 +71,7 @@ pub struct Receiver<T: CommandParser> {
     pub start_state: State,
 }
 
-const ARG_MAX_LEN: usize = 4096;
+const ARG_MAX_LEN: usize = 8000;
 
 struct ArgumentBuffer {
     buf: Vec<u8>,
@@ -269,7 +269,7 @@ impl<T: CommandParser> Receiver<T> {
                     }
                     _ => {
                         self.buf.push_checked(ch, ARG_MAX_LEN).map_err(|_| {
-                            self.error_reset("Argument exceeds maximum length of 4096 bytes.")
+                            self.error_reset("Argument exceeds maximum length of 8000 bytes.")
                         })?;
                         self.state = State::Argument { last_ch: ch };
                     }

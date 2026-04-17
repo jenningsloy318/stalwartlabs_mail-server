@@ -17,6 +17,7 @@ use jmap_proto::{
 };
 use jmap_tools::{Key, Map, Value};
 use rand::distr::Alphanumeric;
+use registry::schema::enums::StorageQuota;
 use std::future::Future;
 use store::{
     Serialize, ValueKey,
@@ -45,7 +46,7 @@ impl PushSubscriptionSet for Server {
         access_token: &AccessToken,
     ) -> trc::Result<SetResponse<push_subscription::PushSubscription>> {
         // Load existing push subscriptions
-        let account_id = access_token.primary_id();
+        let account_id = access_token.account_id();
         let subscriptions_archive = self
             .store()
             .get_value::<Archive<AlignedBytes>>(ValueKey::property(
@@ -76,13 +77,15 @@ impl PushSubscriptionSet for Server {
         // Prepare response
         let mut response = SetResponse::from_request(&request, self.core.jmap.set_max_objects)?;
         let will_destroy = request.unwrap_destroy().into_valid().collect::<Vec<_>>();
+        let account = self.account(account_id).await.caused_by(trc::location!())?;
 
         // Process creates
         'create: for (id, object) in request.unwrap_create() {
             let mut push = PushSubscription::default();
 
             if subscriptions.subscriptions.len()
-                >= access_token.object_quota(Collection::PushSubscription) as usize
+                >= self.object_quota(account.object_quotas(), StorageQuota::MaxPushSubscriptions)
+                    as usize
             {
                 response.not_created.append(id, SetError::new(SetErrorType::OverQuota).with_description(
                     "There are too many subscriptions, please delete some before adding a new one.",
@@ -92,7 +95,7 @@ impl PushSubscriptionSet for Server {
 
             for (property, mut value) in object.into_expanded_object() {
                 if let Err(err) = response
-                    .resolve_self_references(&mut value)
+                    .resolve_self_references(&mut value, 0, false)
                     .and_then(|_| validate_push_value(&property, value, &mut push, true))
                 {
                     response.not_created.append(id, err);
@@ -171,7 +174,7 @@ impl PushSubscriptionSet for Server {
 
             for (property, mut value) in object.into_expanded_object() {
                 if let Err(err) = response
-                    .resolve_self_references(&mut value)
+                    .resolve_self_references(&mut value, 0, false)
                     .and_then(|_| validate_push_value(&property, value, push, false))
                 {
                     response.not_updated.append(id, err);

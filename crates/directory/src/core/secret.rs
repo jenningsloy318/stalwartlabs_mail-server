@@ -4,15 +4,17 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::Principal;
-use crate::PrincipalData;
 use argon2::Argon2;
-use compact_str::ToCompactString;
+use argon2::PasswordHash;
+use argon2::PasswordHasher;
+use argon2::PasswordVerifier;
+use argon2::password_hash::SaltString;
+use argon2::password_hash::rand_core::OsRng;
 use mail_builder::encoders::base64::base64_encode;
 use mail_parser::decoders::base64::base64_decode;
-use password_hash::PasswordHash;
 use pbkdf2::Pbkdf2;
 use pwhash::{bcrypt, bsdi_crypt, md5_crypt, sha1_crypt, sha256_crypt, sha512_crypt, unix_crypt};
+use registry::schema::enums::PasswordHashAlgorithm;
 use scrypt::Scrypt;
 use sha1::Digest;
 use sha1::Sha1;
@@ -21,99 +23,78 @@ use sha2::Sha512;
 use tokio::sync::oneshot;
 use totp_rs::TOTP;
 
-impl Principal {
-    pub async fn verify_secret(
-        &self,
-        code: &str,
-        only_app_pass: bool,
-        is_ordered: bool,
-    ) -> trc::Result<bool> {
-        let mut seen_password = false;
-        let mut password = None;
-        let mut otp_auth = None;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SecretVerificationResult {
+    Valid,
+    Invalid,
+    MissingMfaToken,
+}
 
-        for item in &self.data {
-            match item {
-                PrincipalData::OtpAuth(secret) => {
-                    if !only_app_pass {
-                        otp_auth = Some(secret);
-                    }
-                    seen_password = true;
-                }
-                PrincipalData::Password(secret) => {
-                    if !only_app_pass {
-                        password = Some(secret);
-                    }
-                    seen_password = true;
-                }
-                PrincipalData::AppPassword(secret) => {
-                    // App passwords do not require TOTP
-                    if let Some((_, app_secret)) =
-                        secret.strip_prefix("$app$").and_then(|s| s.split_once('$'))
-                        && verify_secret_hash(app_secret, code).await?
-                    {
-                        return Ok(true);
-                    }
+pub async fn verify_mfa_secret_hash(
+    totp_uri: Option<&str>,
+    totp_token: Option<&str>,
+    hashed_secret: &str,
+    secret: &str,
+) -> trc::Result<SecretVerificationResult> {
+    if let Some(totp_uri) = totp_uri {
+        if let Some(totp_token) = totp_token {
+            let result = verify_secret_hash(hashed_secret, secret.as_bytes()).await?
+                && TOTP::from_url(totp_uri)
+                    .map_err(|err| {
+                        trc::AuthEvent::Error
+                            .reason(err)
+                            .details(totp_uri.to_string())
+                    })?
+                    .check_current(totp_token)
+                    .unwrap_or(false);
+            Ok(if result {
+                SecretVerificationResult::Valid
+            } else {
+                SecretVerificationResult::Invalid
+            })
+        } else if !hashed_secret.is_empty()
+            && !secret.is_empty()
+            && verify_secret_hash(hashed_secret, secret.as_bytes()).await?
+        {
+            // Only let the client know if the TOTP code is missing
+            // if the password is correct
 
-                    seen_password = true;
-                }
-                _ => {
-                    if seen_password && is_ordered {
-                        // Password-related secrets are expected to be at the beginning of the list
-                        break;
-                    }
-                }
-            }
+            Ok(SecretVerificationResult::MissingMfaToken)
+        } else {
+            Ok(SecretVerificationResult::Invalid)
         }
-
-        // Validate TOTP
-        match (otp_auth, password) {
-            (Some(otp_auth), Some(password)) => {
-                if let Some((code, totp_token)) = code.rsplit_once('$').filter(|(c, t)| {
-                    !c.is_empty()
-                        && (6..=8).contains(&t.len())
-                        && t.as_bytes().iter().all(|b| b.is_ascii_digit())
-                }) {
-                    let result = verify_secret_hash(password, code).await?
-                        && TOTP::from_url(otp_auth)
-                            .map_err(|err| {
-                                trc::AuthEvent::Error
-                                    .reason(err)
-                                    .details(otp_auth.to_compact_string())
-                            })?
-                            .check_current(totp_token)
-                            .unwrap_or(false);
-                    Ok(result)
-                } else if verify_secret_hash(password, code).await? {
-                    // Only let the client know if the TOTP code is missing
-                    // if the password is correct
-
-                    Err(trc::AuthEvent::MissingTotp.into_err())
-                } else {
-                    Ok(false)
-                }
-            }
-            (None, Some(password)) => verify_secret_hash(password, code).await,
-            _ => Ok(false),
+    } else if !hashed_secret.is_empty() && !secret.is_empty() {
+        if verify_secret_hash(hashed_secret, secret.as_bytes()).await? {
+            Ok(SecretVerificationResult::Valid)
+        } else {
+            Ok(SecretVerificationResult::Invalid)
         }
+    } else {
+        Ok(SecretVerificationResult::Invalid)
     }
 }
 
-async fn verify_hash_prefix(hashed_secret: &str, secret: &str) -> trc::Result<bool> {
-    if hashed_secret.starts_with("$argon2")
-        || hashed_secret.starts_with("$pbkdf2")
-        || hashed_secret.starts_with("$scrypt")
-    {
+async fn verify_hash_prefix(hashed_secret: &str, secret: &[u8]) -> trc::Result<bool> {
+    let is_argon = hashed_secret.starts_with("$argon2");
+    let is_pbkdf2 = !is_argon && hashed_secret.starts_with("$pbkdf2");
+    let is_scrypt = !is_argon && !is_pbkdf2 && hashed_secret.starts_with("$scrypt");
+
+    if is_argon || is_pbkdf2 || is_scrypt {
         let (tx, rx) = oneshot::channel();
-        let secret = secret.to_string();
+        let secret = secret.to_vec();
         let hashed_secret = hashed_secret.to_string();
 
         tokio::task::spawn_blocking(move || match PasswordHash::new(&hashed_secret) {
             Ok(hash) => {
-                tx.send(Ok(hash
-                    .verify_password(&[&Argon2::default(), &Pbkdf2, &Scrypt], &secret)
-                    .is_ok()))
-                    .ok();
+                let result = if is_argon {
+                    Argon2::default().verify_password(&secret, &hash)
+                } else if is_pbkdf2 {
+                    Pbkdf2.verify_password(&secret, &hash)
+                } else {
+                    Scrypt.verify_password(&secret, &hash)
+                };
+
+                tx.send(Ok(result.is_ok())).ok();
             }
             Err(err) => {
                 tx.send(Err(trc::AuthEvent::Error
@@ -151,7 +132,7 @@ async fn verify_hash_prefix(hashed_secret: &str, secret: &str) -> trc::Result<bo
     }
 }
 
-pub async fn verify_secret_hash(hashed_secret: &str, secret: &str) -> trc::Result<bool> {
+pub async fn verify_secret_hash(hashed_secret: &str, secret: &[u8]) -> trc::Result<bool> {
     if hashed_secret.starts_with('$') {
         verify_hash_prefix(hashed_secret, secret).await
     } else if hashed_secret.starts_with('_') {
@@ -166,7 +147,7 @@ pub async fn verify_secret_hash(hashed_secret: &str, secret: &str) -> trc::Resul
                 "SHA" => {
                     // SHA-1
                     let mut hasher = Sha1::new();
-                    hasher.update(secret.as_bytes());
+                    hasher.update(secret);
                     Ok(
                         String::from_utf8(
                             base64_encode(&hasher.finalize()[..]).unwrap_or_default(),
@@ -181,14 +162,14 @@ pub async fn verify_secret_hash(hashed_secret: &str, secret: &str) -> trc::Resul
                     let hash = decoded.get(..20).unwrap_or_default();
                     let salt = decoded.get(20..).unwrap_or_default();
                     let mut hasher = Sha1::new();
-                    hasher.update(secret.as_bytes());
+                    hasher.update(secret);
                     hasher.update(salt);
                     Ok(&hasher.finalize()[..] == hash)
                 }
                 "SHA256" => {
                     // Verify hash
                     let mut hasher = Sha256::new();
-                    hasher.update(secret.as_bytes());
+                    hasher.update(secret);
                     Ok(
                         String::from_utf8(
                             base64_encode(&hasher.finalize()[..]).unwrap_or_default(),
@@ -203,14 +184,14 @@ pub async fn verify_secret_hash(hashed_secret: &str, secret: &str) -> trc::Resul
                     let hash = decoded.get(..32).unwrap_or_default();
                     let salt = decoded.get(32..).unwrap_or_default();
                     let mut hasher = Sha256::new();
-                    hasher.update(secret.as_bytes());
+                    hasher.update(secret);
                     hasher.update(salt);
                     Ok(&hasher.finalize()[..] == hash)
                 }
                 "SHA512" => {
                     // SHA-512
                     let mut hasher = Sha512::new();
-                    hasher.update(secret.as_bytes());
+                    hasher.update(secret);
                     Ok(
                         String::from_utf8(
                             base64_encode(&hasher.finalize()[..]).unwrap_or_default(),
@@ -225,13 +206,13 @@ pub async fn verify_secret_hash(hashed_secret: &str, secret: &str) -> trc::Resul
                     let hash = decoded.get(..64).unwrap_or_default();
                     let salt = decoded.get(64..).unwrap_or_default();
                     let mut hasher = Sha512::new();
-                    hasher.update(secret.as_bytes());
+                    hasher.update(secret);
                     hasher.update(salt);
                     Ok(&hasher.finalize()[..] == hash)
                 }
                 "MD5" => {
                     // MD5
-                    let digest = md5::compute(secret.as_bytes());
+                    let digest = md5::compute(secret);
                     Ok(
                         String::from_utf8(base64_encode(&digest[..]).unwrap_or_default()).unwrap()
                             == hashed_secret,
@@ -245,7 +226,7 @@ pub async fn verify_secret_hash(hashed_secret: &str, secret: &str) -> trc::Resul
                         Ok(unix_crypt::verify(secret, hashed_secret))
                     }
                 }
-                "PLAIN" | "plain" | "CLEAR" | "clear" => Ok(hashed_secret == secret),
+                "PLAIN" | "plain" | "CLEAR" | "clear" => Ok(hashed_secret.as_bytes() == secret),
                 _ => Err(trc::AuthEvent::Error
                     .ctx(trc::Key::Reason, "Unsupported algorithm")
                     .details(hashed_secret.to_string())),
@@ -256,8 +237,55 @@ pub async fn verify_secret_hash(hashed_secret: &str, secret: &str) -> trc::Resul
                 .details(hashed_secret.to_string()))
         }
     } else if !hashed_secret.is_empty() {
-        Ok(hashed_secret == secret)
+        Ok(hashed_secret.as_bytes() == secret)
     } else {
         Ok(false)
+    }
+}
+
+pub async fn hash_secret(algorithm: PasswordHashAlgorithm, secret: Vec<u8>) -> trc::Result<String> {
+    let (tx, rx) = oneshot::channel();
+
+    tokio::task::spawn_blocking(move || {
+        let salt = SaltString::generate(&mut OsRng);
+
+        let result = match algorithm {
+            PasswordHashAlgorithm::Argon2id => {
+                let hasher = Argon2::default();
+                hasher
+                    .hash_password(secret.as_slice(), &salt)
+                    .map(|h| h.to_string())
+            }
+            PasswordHashAlgorithm::Bcrypt => {
+                return tx
+                    .send(bcrypt::hash(secret.as_slice()).map_err(|err| {
+                        trc::AuthEvent::Error
+                            .reason(err)
+                            .details("Bcrypt hash failed")
+                    }))
+                    .ok()
+                    .unwrap_or(());
+            }
+            PasswordHashAlgorithm::Scrypt => Scrypt
+                .hash_password(secret.as_slice(), &salt)
+                .map(|h| h.to_string()),
+            PasswordHashAlgorithm::Pbkdf2 => Pbkdf2
+                .hash_password(secret.as_slice(), &salt)
+                .map(|h| h.to_string()),
+        };
+
+        tx.send(result.map_err(|err| {
+            trc::AuthEvent::Error
+                .reason(err)
+                .details("Password hash failed")
+        }))
+        .ok();
+    });
+
+    match rx.await {
+        Ok(result) => result,
+        Err(err) => Err(trc::EventType::Server(trc::ServerEvent::ThreadError)
+            .caused_by(trc::location!())
+            .reason(err)),
     }
 }

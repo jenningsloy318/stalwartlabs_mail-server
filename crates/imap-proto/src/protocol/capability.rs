@@ -20,6 +20,7 @@ pub enum Capability {
     Idle,
     Namespace,
     Id,
+    Rights,
     Children,
     MultiAppend,
     Binary,
@@ -99,6 +100,7 @@ impl Capability {
             Capability::Binary => b"BINARY",
             Capability::Unselect => b"UNSELECT",
             Capability::ACL => b"ACL",
+            Capability::Rights => b"RIGHTS=texk",
             Capability::UIDPlus => b"UIDPLUS",
             Capability::ESearch => b"ESEARCH",
             Capability::SASLIR => b"SASL-IR",
@@ -171,6 +173,7 @@ impl Capability {
                 Capability::StatusSize,
                 Capability::ObjectId,
                 Capability::Preview,
+                Capability::Rights,
                 Capability::Quota,
                 Capability::QuotaResource(QuotaResourceName::Storage),
             ]);
