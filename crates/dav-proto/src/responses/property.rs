@@ -59,7 +59,7 @@ impl Display for Rfc1123DateTime {
         let dt = DateTime::from_timestamp(self.0);
         write!(
             f,
-            "{}, {} {} {:04} {:02}:{:02}:{:02} GMT",
+            "{}, {:02} {} {:04} {:02}:{:02}:{:02} GMT",
             DOW[dt.day_of_week() as usize],
             dt.day,
             MONTH

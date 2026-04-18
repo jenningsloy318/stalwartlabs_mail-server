@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::{InMemoryStore, LookupStores, registry::bootstrap::Bootstrap};
+use crate::{LookupStores, registry::bootstrap::Bootstrap};
 use registry::schema::structs::{LookupStore, StoreLookup};
 use std::collections::hash_map::Entry;
 
@@ -28,18 +28,18 @@ impl LookupStores {
                 LookupStore::PostgreSql(postgre_sql_store) => {
                     crate::backend::postgres::PostgresStore::open(postgre_sql_store)
                         .await
-                        .map(InMemoryStore::Store)
+                        .map(crate::InMemoryStore::Store)
                 }
                 #[cfg(feature = "mysql")]
                 LookupStore::MySql(my_sql_store) => {
                     crate::backend::mysql::MysqlStore::open(my_sql_store)
                         .await
-                        .map(InMemoryStore::Store)
+                        .map(crate::InMemoryStore::Store)
                 }
                 #[cfg(feature = "sqlite")]
                 LookupStore::Sqlite(sqlite_store) => {
                     crate::backend::sqlite::SqliteStore::open(sqlite_store)
-                        .map(InMemoryStore::Store)
+                        .map(crate::InMemoryStore::Store)
                 }
                 // SPDX-SnippetBegin
                 // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>

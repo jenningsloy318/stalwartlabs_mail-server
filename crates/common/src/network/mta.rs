@@ -375,6 +375,20 @@ impl Server {
                 })
                 .caused_by(trc::location!())?
             {
+                let last_trained_at = match &model {
+                    SpamClassifier::FhClassifier {
+                        last_trained_at, ..
+                    } => Some(*last_trained_at),
+                    SpamClassifier::CcfhClassifier {
+                        last_trained_at, ..
+                    } => Some(*last_trained_at),
+                    SpamClassifier::Disabled => None,
+                };
+
+                trc::event!(
+                    Spam(SpamEvent::ModelLoaded),
+                    Details = last_trained_at.map(trc::Value::Timestamp),
+                );
                 self.inner.data.spam_classifier.store(Arc::new(model));
             } else {
                 trc::event!(Spam(SpamEvent::ModelNotFound));

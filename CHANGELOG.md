@@ -86,7 +86,10 @@ This version includes **multiple breaking changes**. If you are upgrading from v
   - Increment argument max length to `8000` bytes
   - ACL: Add `RIGHTS` capability (#2762)
   - ACL: Fix `ACL SET` permission override.
-- WebDAV: Return `304` `NOT_MODIFIED` on `If-None-Match`
+- WebDAV: 
+  - Return `304` `NOT_MODIFIED` on `If-None-Match`
+  - Use RFC 2616 instead of RFC 1123 for date formatting
+  - Fix ACL container/item mismatch in reports.
 - Configuration: Prefix parsing issues (#2495)
 - OIDC: JWKS Exposes Symmetric Signing Key
 - SQLite: Fix thread pool exhaustion.
@@ -95,6 +98,7 @@ This version includes **multiple breaking changes**. If you are upgrading from v
 - ACME: Fix wrong origin for subdomain updates (#2360)
 - Spam filter: Skip invalid messages during training.
 - Calendar: Include minutes in localized invite templates (#2828)
+- HTTP: Fix `204` CORS preflight responses
 
 ## [0.15.5] - 2026-02-14
 

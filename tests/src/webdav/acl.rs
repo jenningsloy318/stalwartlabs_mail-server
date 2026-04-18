@@ -131,6 +131,11 @@ pub async fn test(test: &TestServer) {
                     .properties(&owner_file)
                     .with_status(StatusCode::OK)
                     .is_defined(DavProperty::WebDav(WebDavProperty::GetETag));
+                sharee_client
+                    .request("REPORT", &owner_folder, CALENDAR_QUERY_ANY_VEVENT)
+                    .await
+                    .with_status(StatusCode::MULTI_STATUS)
+                    .with_hrefs([owner_file.as_str()]);
             }
             DavResourceName::Card => {
                 sharee_client
@@ -139,6 +144,11 @@ pub async fn test(test: &TestServer) {
                     .properties(&owner_file)
                     .with_status(StatusCode::OK)
                     .is_defined(DavProperty::WebDav(WebDavProperty::GetETag));
+                sharee_client
+                    .request("REPORT", &owner_folder, ADDRESSBOOK_QUERY_ANY_FN)
+                    .await
+                    .with_status(StatusCode::MULTI_STATUS)
+                    .with_hrefs([owner_file.as_str()]);
             }
             _ => {}
         }
@@ -408,3 +418,21 @@ const ACL_PRINCIPAL_QUERY: &str = r#"<?xml version="1.0" encoding="utf-8" ?>
        <D:displayname/>
      </D:prop>
    </D:acl-principal-prop-set>"#;
+
+const CALENDAR_QUERY_ANY_VEVENT: &str = r#"<?xml version="1.0" encoding="utf-8" ?>
+   <C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+     <D:prop><D:getetag/></D:prop>
+     <C:filter>
+       <C:comp-filter name="VCALENDAR">
+         <C:comp-filter name="VEVENT"/>
+       </C:comp-filter>
+     </C:filter>
+   </C:calendar-query>"#;
+
+const ADDRESSBOOK_QUERY_ANY_FN: &str = r#"<?xml version="1.0" encoding="utf-8" ?>
+   <C:addressbook-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+     <D:prop><D:getetag/></D:prop>
+     <C:filter>
+       <C:prop-filter name="FN"/>
+     </C:filter>
+   </C:addressbook-query>"#;

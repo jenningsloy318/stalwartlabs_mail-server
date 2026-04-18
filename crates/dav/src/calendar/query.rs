@@ -90,7 +90,7 @@ impl CalendarQueryRequestHandler for Server {
         // Obtain shared ids
         let shared_ids = if !access_token.is_member(account_id) {
             resources
-                .shared_containers(access_token, [Acl::ReadItems], false)
+                .shared_items(access_token, [Acl::ReadItems], false)
                 .into()
         } else {
             None

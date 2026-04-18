@@ -19,6 +19,7 @@ use registry::{
     types::{EnumImpl, datetime::UTCDateTime},
 };
 use std::{
+    borrow::Cow,
     fs::{self, File},
     io::{self, BufRead, BufReader, Read, Seek, SeekFrom},
     path::Path,
@@ -267,6 +268,7 @@ fn read_log_entries(
 }
 
 fn log_from_line(line: &str) -> Option<Log> {
+    let line = strip_ansi(line);
     let (timestamp, rest) = line.split_once(' ')?;
     let timestamp = DateTime::parse_from_rfc3339(timestamp).ok()?;
     let (level, rest) = rest.trim().split_once(' ')?;
@@ -279,6 +281,43 @@ fn log_from_line(line: &str) -> Option<Log> {
         event: EventType::parse(event_id)?,
         details: details.trim().to_string(),
     })
+}
+
+fn strip_ansi(line: &str) -> Cow<'_, str> {
+    if !line.contains('\x1b') {
+        return Cow::Borrowed(line);
+    }
+
+    let mut out = String::with_capacity(line.len());
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+        if c != '\x1b' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('[') => {
+                for c in chars.by_ref() {
+                    if matches!(c as u32, 0x40..=0x7e) {
+                        break;
+                    }
+                }
+            }
+            Some(']') => {
+                while let Some(c) = chars.next() {
+                    if c == '\x07' {
+                        break;
+                    }
+                    if c == '\x1b' {
+                        chars.next();
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    Cow::Owned(out)
 }
 
 /*

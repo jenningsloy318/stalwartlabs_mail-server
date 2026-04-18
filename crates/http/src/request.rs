@@ -211,7 +211,7 @@ impl ParseHttp for Server {
                         };
                     }
                     (_, &Method::OPTIONS) => {
-                        return Ok(JsonProblemResponse(StatusCode::NO_CONTENT).into_http_response());
+                        return Ok(HttpResponse::new(StatusCode::NO_CONTENT));
                     }
                     _ => (),
                 }
@@ -339,7 +339,7 @@ impl ParseHttp for Server {
                         .map(|resource| resource.into_http_response());
                 }
                 (_, &Method::OPTIONS) => {
-                    return Ok(JsonProblemResponse(StatusCode::NO_CONTENT).into_http_response());
+                    return Ok(HttpResponse::new(StatusCode::NO_CONTENT));
                 }
                 _ => (),
             },
@@ -387,14 +387,14 @@ impl ParseHttp for Server {
                     return Ok(self.core.oauth.oidc_jwks.clone().into_http_response());
                 }
                 (_, &Method::OPTIONS) => {
-                    return Ok(JsonProblemResponse(StatusCode::NO_CONTENT).into_http_response());
+                    return Ok(HttpResponse::new(StatusCode::NO_CONTENT));
                 }
                 _ => (),
             },
             "api" => {
                 // Allow CORS preflight requests
                 if req.method() == Method::OPTIONS {
-                    return Ok(JsonProblemResponse(StatusCode::NO_CONTENT).into_http_response());
+                    return Ok(HttpResponse::new(StatusCode::NO_CONTENT));
                 }
 
                 return self.handle_api_request(&mut req, &session).await;
@@ -579,9 +579,7 @@ impl ParseHttp for Server {
                             return self.handle_contact_form(&session, form, form_data).await;
                         }
                         Method::OPTIONS => {
-                            return Ok(
-                                JsonProblemResponse(StatusCode::NO_CONTENT).into_http_response()
-                            );
+                            return Ok(HttpResponse::new(StatusCode::NO_CONTENT));
                         }
                         _ => {}
                     }
@@ -597,7 +595,9 @@ impl ParseHttp for Server {
             }
             external => {
                 if path.next().is_none() {
-                    return Ok(HttpResponse::redirect(format!("/{external}/")));
+                    if !external.is_empty() {
+                        return Ok(HttpResponse::redirect(format!("/{external}/")));
+                    }
                 } else if let Some(resource) = self
                     .inner
                     .data

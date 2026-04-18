@@ -170,9 +170,11 @@ impl OAuthApiHandler for Server {
                     .is_some_and(|uri| uri.starts_with("http://"))
                 {
                     #[cfg(not(feature = "dev_mode"))]
-                    return Err(trc::AuthEvent::Error
-                        .into_err()
-                        .details("Redirect URI must be HTTPS."));
+                    if !self.registry().is_recovery_mode() {
+                        return Err(trc::AuthEvent::Error
+                            .into_err()
+                            .details("Redirect URI must be HTTPS."));
+                    }
                 }
 
                 // Parse and validate PKCE challenge (RFC 7636).
