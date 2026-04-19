@@ -40,180 +40,173 @@ pub mod prop;
 pub mod put_get;
 pub mod sync;
 
-#[test]
-fn webdav_tests() {
-    tokio::runtime::Builder::new_multi_thread()
-        .thread_stack_size(8 * 1024 * 1024) // 8MB stack
-        .enable_all()
+#[tokio::test(flavor = "multi_thread")]
+pub async fn webdav_tests() {
+    // Prepare settings
+    let assisted_discovery = std::env::var("ASSISTED_DISCOVERY").unwrap_or_default() == "1";
+
+    let mut test = TestServerBuilder::new("webdav_tests")
+        .await
+        .with_default_listeners()
+        .await
         .build()
-        .unwrap()
-        .block_on(async {
-            // Prepare settings
-            let assisted_discovery = std::env::var("ASSISTED_DISCOVERY").unwrap_or_default() == "1";
+        .await;
 
-            let mut test = TestServerBuilder::new("webdav_tests")
-                .await
-                .with_default_listeners()
-                .await
-                .build()
-                .await;
+    // Create admin account
+    let admin = test.create_admin_account("admin@example.com").await;
 
-            // Create admin account
-            let admin = test.create_admin_account("admin@example.com").await;
-
-            // Create test users
-            for (name, secret, description, aliases) in [
-                (
-                    "john@example.com",
-                    "secret2 + some more text",
-                    "John Doe",
-                    &["jdoe@example.com"],
-                ),
-                (
-                    "jane@example.com",
-                    "secret3 + some more text",
-                    "Jane Doe-Smith",
-                    &["jane.smith@example.com"],
-                ),
-                (
-                    "bill@example.com",
-                    "secret4 + some more text",
-                    "Bill Foobar",
-                    &["bill@example.com"],
-                ),
-                (
-                    "mike@example.com",
-                    "secret5 + some more text",
-                    "Mike Noquota",
-                    &["mike@example.com"],
-                ),
-            ] {
-                let account = admin
-                    .create_user_account(
-                        name,
-                        secret,
-                        description,
-                        aliases,
-                        vec![
-                            Permission::UnlimitedRequests,
-                            Permission::UnlimitedUploads,
-                            Permission::DavPrincipalList,
-                            Permission::DavPrincipalSearch,
-                        ],
-                    )
-                    .await;
-                if name == "mike@example.com" {
-                    admin
-                        .registry_update_object(
-                            ObjectType::Account,
-                            account.id(),
-                            json!({
-                                Property::Quotas: { StorageQuota::MaxDiskQuota.as_str(): 1024}
-                            }),
-                        )
-                        .await;
-                }
-
-                test.insert_account(account);
-            }
-
-            // Create test group
-            test.insert_account(
-                admin
-                    .create_group_account("support@example.com", "Support Group", &[])
-                    .await,
-            );
-
-            // Add Jane to the Support group
-            let support_id = test.account("support@example.com").id();
+    // Create test users
+    for (name, secret, description, aliases) in [
+        (
+            "john@example.com",
+            "secret2 + some more text",
+            "John Doe",
+            &["jdoe@example.com"],
+        ),
+        (
+            "jane@example.com",
+            "secret3 + some more text",
+            "Jane Doe-Smith",
+            &["jane.smith@example.com"],
+        ),
+        (
+            "bill@example.com",
+            "secret4 + some more text",
+            "Bill Foobar",
+            &["bill@example.com"],
+        ),
+        (
+            "mike@example.com",
+            "secret5 + some more text",
+            "Mike Noquota",
+            &["mike@example.com"],
+        ),
+    ] {
+        let account = admin
+            .create_user_account(
+                name,
+                secret,
+                description,
+                aliases,
+                vec![
+                    Permission::UnlimitedRequests,
+                    Permission::UnlimitedUploads,
+                    Permission::DavPrincipalList,
+                    Permission::DavPrincipalSearch,
+                ],
+            )
+            .await;
+        if name == "mike@example.com" {
             admin
                 .registry_update_object(
                     ObjectType::Account,
-                    test.account("jane@example.com").id(),
+                    account.id(),
                     json!({
-                        "memberGroupIds": { support_id: true },
+                        Property::Quotas: { StorageQuota::MaxDiskQuota.as_str(): 1024}
                     }),
                 )
                 .await;
+        }
 
-            // Add test settings
-            admin
-                .registry_update_setting(
-                    SystemSettings {
-                        default_hostname: "webdav.example.org".to_string(),
-                        ..Default::default()
-                    },
-                    &[Property::DefaultHostname],
-                )
-                .await;
-            admin
-                .registry_create_object(MtaStageAuth {
-                    require: Expression {
-                        else_: "false".to_string(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .await;
-            admin
-                .registry_create_object(CalendarAlarm {
-                    min_trigger_interval: 1000u64.into(),
-                    ..Default::default()
-                })
-                .await;
-            admin
-                .registry_create_object(Sharing {
-                    allow_directory_queries: true,
-                    ..Default::default()
-                })
-                .await;
-            admin
-                .registry_create_object(CalendarScheduling {
-                    auto_add_invitations: true,
-                    ..Default::default()
-                })
-                .await;
-            admin
-                .registry_create_object(WebDav {
-                    enable_assisted_discovery: assisted_discovery,
-                    ..Default::default()
-                })
-                .await;
-            admin.reload_settings().await;
+        test.insert_account(account);
+    }
 
-            test.insert_account(admin);
+    // Create test group
+    test.insert_account(
+        admin
+            .create_group_account("support@example.com", "Support Group", &[])
+            .await,
+    );
 
-            let start_time = Instant::now();
-            //test_build_itip_templates(&test).await;
-            basic::test(&test).await;
-            put_get::test(&test).await;
-            mkcol::test(&test).await;
-            copy_move::test(&test, assisted_discovery).await;
-            prop::test(&test, assisted_discovery).await;
-            multiget::test(&test).await;
-            sync::test(&test).await;
-            lock::test(&test).await;
-            principals::test(&test, assisted_discovery).await;
-            acl::test(&test).await;
-            card_query::test(&test).await;
-            cal_query::test(&test).await;
-            cal_alarm::test(&test).await;
-            cal_itip::test();
-            cal_scheduling::test(&test).await;
+    // Add Jane to the Support group
+    let support_id = test.account("support@example.com").id();
+    admin
+        .registry_update_object(
+            ObjectType::Account,
+            test.account("jane@example.com").id(),
+            json!({
+                "memberGroupIds": { support_id: true },
+            }),
+        )
+        .await;
 
-            // Print elapsed time
-            let elapsed = start_time.elapsed();
-            println!(
-                "Elapsed: {}.{:03}s",
-                elapsed.as_secs(),
-                elapsed.subsec_millis()
-            );
+    // Add test settings
+    admin
+        .registry_update_setting(
+            SystemSettings {
+                default_hostname: "webdav.example.org".to_string(),
+                ..Default::default()
+            },
+            &[Property::DefaultHostname],
+        )
+        .await;
+    admin
+        .registry_create_object(MtaStageAuth {
+            require: Expression {
+                else_: "false".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .await;
+    admin
+        .registry_create_object(CalendarAlarm {
+            min_trigger_interval: 1000u64.into(),
+            ..Default::default()
+        })
+        .await;
+    admin
+        .registry_create_object(Sharing {
+            allow_directory_queries: true,
+            ..Default::default()
+        })
+        .await;
+    admin
+        .registry_create_object(CalendarScheduling {
+            auto_add_invitations: true,
+            ..Default::default()
+        })
+        .await;
+    admin
+        .registry_create_object(WebDav {
+            enable_assisted_discovery: assisted_discovery,
+            ..Default::default()
+        })
+        .await;
+    admin.reload_settings().await;
 
-            // Remove test data
-            if test.is_reset() {
-                test.temp_dir.delete();
-            }
-        });
+    test.insert_account(admin);
+
+    let start_time = Instant::now();
+    //test_build_itip_templates(&test).await;
+    basic::test(&test).await;
+    put_get::test(&test).await;
+    mkcol::test(&test).await;
+    copy_move::test(&test, assisted_discovery).await;
+    prop::test(&test, assisted_discovery).await;
+    multiget::test(&test).await;
+    sync::test(&test).await;
+    lock::test(&test).await;
+    principals::test(&test, assisted_discovery).await;
+    acl::test(&test).await;
+    card_query::test(&test).await;
+    cal_query::test(&test).await;
+    cal_alarm::test(&test).await;
+    cal_itip::test();
+    cal_scheduling::test(&test).await;
+
+    // Print elapsed time
+    let elapsed = start_time.elapsed();
+    println!(
+        "Elapsed: {}.{:03}s",
+        elapsed.as_secs(),
+        elapsed.subsec_millis()
+    );
+
+    // Remove test data
+    if test.is_reset() {
+        test.temp_dir.delete();
+    }
 }
 
 pub trait DavResourcesTest {

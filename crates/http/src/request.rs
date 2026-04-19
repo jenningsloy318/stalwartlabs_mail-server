@@ -311,7 +311,15 @@ impl ParseHttp for Server {
                         .await?;
                     return Ok(Resource::new(
                         "application/json",
-                        self.core.network.info.pacc.clone().into_bytes(),
+                        self.get_pacc_for_fomain(
+                            req.headers()
+                                .get(header::HOST)
+                                .and_then(|h| h.to_str().ok())
+                                .map(|h| h.rsplit_once(':').map_or(h, |(h, _)| h))
+                                .unwrap_or_default(),
+                        )
+                        .await?
+                        .into_bytes(),
                     )
                     .into_http_response());
                 }

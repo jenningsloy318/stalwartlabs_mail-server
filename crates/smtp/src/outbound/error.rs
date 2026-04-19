@@ -26,10 +26,10 @@ pub enum ClientError {
     UnparseableReply,
 
     /// Unexpected SMTP reply.
-    UnexpectedReply(smtp_proto::Response<String>),
+    UnexpectedReply(Box<smtp_proto::Response<String>>),
 
     /// SMTP authentication failure.
-    AuthenticationFailed(smtp_proto::Response<String>),
+    AuthenticationFailed(Box<smtp_proto::Response<String>>),
 
     /// Invalid TLS name provided.
     InvalidTLSName,
@@ -73,7 +73,7 @@ impl AssertReply for Response<String> {
         if self.severity() == severity {
             Ok(())
         } else {
-            Err(ClientError::UnexpectedReply(self))
+            Err(ClientError::UnexpectedReply(Box::new(self)))
         }
     }
 
@@ -83,7 +83,7 @@ impl AssertReply for Response<String> {
         if (200..=299).contains(&self.code) {
             Ok(())
         } else {
-            Err(ClientError::UnexpectedReply(self))
+            Err(ClientError::UnexpectedReply(Box::new(self)))
         }
     }
 
@@ -93,7 +93,7 @@ impl AssertReply for Response<String> {
         if self.code() == code {
             Ok(())
         } else {
-            Err(ClientError::UnexpectedReply(self))
+            Err(ClientError::UnexpectedReply(Box::new(self)))
         }
     }
 }

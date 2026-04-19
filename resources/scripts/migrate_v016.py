@@ -447,6 +447,35 @@ def collect_array(sub: dict[str, str], field: str) -> list[str]:
     items.sort()
     return [v for _, v in items]
 
+_PEM_RE = re.compile(
+    r"-----BEGIN (?P<kind>[A-Z][A-Z0-9 ]*?)-----"
+    r"[\s\S]+?"
+    r"-----END (?P=kind)-----",
+    re.MULTILINE,
+)
+
+
+def split_pem_bundle(blob: str) -> tuple[str, str]:
+    certs: list[str] = []
+    key: str | None = None
+    for m in _PEM_RE.finditer(blob):
+        kind = m.group("kind")
+        block = m.group(0) + "\n"
+        if "PRIVATE KEY" in kind:
+            if key is None:
+                key = block
+        elif kind == "CERTIFICATE":
+            certs.append(block)
+    return ("".join(certs), key or "")
+
+
+def _make_certificate_object(cert_pem: str, key_pem: str) -> dict[str, Any]:
+    return {
+        "certificate": {"@type": "Text", "value": cert_pem},
+        "privateKey": {"@type": "Text", "secret": key_pem},
+    }
+
+
 def is_app_password(secret: str) -> bool:
     return secret.startswith("$app$")
 
@@ -523,9 +552,6 @@ class Converter:
             if pid is not None:
                 self.by_id[pid] = p
 
-        # Name -> client-id lookups populated during _build_*.
-        # Client ids for tenants / domains / lists / DKIM: "create-<N>".
-        # Client ids for accounts (users + groups):       "restore-<old_id>".
         self.tenant_name_to_cid: dict[str, str] = {}
         self.domain_name_to_cid: dict[str, str] = {}
         self.domain_cid_to_name: dict[str, str] = {}
@@ -549,6 +575,7 @@ class Converter:
         accounts = self._build_accounts()
         mailing_lists = self._build_mailing_lists()
         dkim_signatures = self._build_dkim_signatures()
+        certificates = self._build_certificates()
 
         self._check_duplicate_emails(accounts, mailing_lists)
 
@@ -582,6 +609,8 @@ class Converter:
             out["MailingList"] = mailing_lists
         if dkim_signatures:
             out["DkimSignature"] = dkim_signatures
+        if certificates:
+            out["Certificate"] = certificates
         return out
 
     def _build_tenants(self) -> dict[str, dict[str, Any]]:
@@ -715,7 +744,6 @@ class Converter:
         return None
 
     def _resolve_name_and_domain(self, p: dict[str, Any]) -> tuple[str, str]:
-        """Return (local_name, domain_cid) for a user/group/mailing list."""
         nm = pv_string(p.get("name"))
 
         if "@" in nm:
@@ -755,13 +783,11 @@ class Converter:
             if parts is None:
                 continue
             local, dom = parts
-            # Drop catch-all addresses.
             if local == "":
                 continue
             if dom not in self.domain_name_to_cid:
                 continue
             d_cid = self.domain_name_to_cid[dom]
-            # Skip (local,domain) that duplicates the primary identity.
             if local == primary_name and d_cid == primary_domain_cid:
                 continue
             key = (local, d_cid)
@@ -1392,22 +1418,66 @@ class Converter:
         }
         return body
 
+    def _build_certificates(self) -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
+
+        for sid, sub in sorted(
+            build_sub_trees(self.settings, "certificate", "cert").items()
+        ):
+            cert = sub.get("cert", "").strip()
+            key = sub.get("private-key", "").strip()
+            if not cert or not key:
+                print(
+                    f"warning: skipping certificate.{sid}: "
+                    "missing cert or private-key",
+                    file=sys.stderr,
+                )
+                continue
+            if "-----BEGIN " not in cert or "-----BEGIN " not in key:
+                print(
+                    f"warning: skipping certificate.{sid}: value is not PEM "
+                    "(likely a file or env placeholder)",
+                    file=sys.stderr,
+                )
+                continue
+            out[self._next_create_cid()] = _make_certificate_object(cert, key)
+
+        for sid, sub in sorted(
+            build_sub_trees(self.settings, "acme", "cert").items()
+        ):
+            blob_b64 = sub.get("cert", "").strip()
+            if not blob_b64:
+                continue
+            try:
+                blob = base64.b64decode(blob_b64).decode("latin-1")
+            except Exception as exc:  
+                print(
+                    f"warning: skipping acme.{sid}: base64 decode failed: {exc}",
+                    file=sys.stderr,
+                )
+                continue
+            cert_pem, key_pem = split_pem_bundle(blob)
+            if not cert_pem or not key_pem:
+                print(
+                    f"warning: skipping acme.{sid}: decoded bundle lacks "
+                    "cert or private key",
+                    file=sys.stderr,
+                )
+                continue
+            out[self._next_create_cid()] = _make_certificate_object(
+                cert_pem, key_pem
+            )
+
+        return out
+
     def _check_duplicate_emails(
         self,
         accounts: dict[str, dict[str, Any]],
         mailing_lists: dict[str, dict[str, Any]],
     ) -> None:
-        """
-        Ensure every (localpart, domainId) pair claimed by the new format is
-        unique across every account's primary identity + aliases and every
-        mailing list's primary identity + aliases.  Duplicates would cause
-        ambiguity on the server, so we bail early.
-        """
-        # (local, domain_cid) -> "friendly description of first owner"
         owners: dict[tuple[str, str], str] = {}
 
         def claim(local: str, domain_ref: str, owner: str) -> None:
-            # domainId values are stored as "#<cid>"; normalise to bare cid.
             d_cid = domain_ref[1:] if domain_ref.startswith("#") else domain_ref
             key = (local, d_cid)
             if key in owners:
@@ -1446,6 +1516,7 @@ COLLECTION_ORDER = [
     "Account",
     "MailingList",
     "DkimSignature",
+    "Certificate",
 ]
 
 def build_export_ops(result: dict[str, Any]) -> list[dict[str, Any]]:

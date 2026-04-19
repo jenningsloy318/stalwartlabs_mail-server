@@ -310,7 +310,7 @@ mod tests {
                         id: call.id,
                         name: call.name,
                         method: ResponseMethod::Changes(ChangesResponseMethod::Mailbox(
-                            ChangesResponse {
+                            Box::new(ChangesResponse {
                                 account_id: Id::new(1),
                                 old_state: Default::default(),
                                 new_state: Default::default(),
@@ -322,7 +322,7 @@ mod tests {
                                     MailboxProperty::Name.into(),
                                     MailboxProperty::ParentId.into(),
                                 ]),
-                            },
+                            }),
                         )),
                     });
                 }

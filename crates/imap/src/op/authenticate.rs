@@ -47,7 +47,7 @@ impl<T: SessionStream> Session<T> {
                             .id(args.tag.clone())
                     })?;
 
-                    self.authenticate(credentials, args.tag).await
+                    Box::pin(self.authenticate(credentials, args.tag)).await
                 } else {
                     self.receiver.request = receiver::Request {
                         tag: args.tag,

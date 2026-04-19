@@ -241,14 +241,14 @@ impl JmapEmailCopy for Server {
             *next_call = Call {
                 id: String::new(),
                 name: MethodName::new(MethodObject::Email, MethodFunction::Set),
-                method: RequestMethod::Set(SetRequestMethod::Email(SetRequest {
+                method: RequestMethod::Set(SetRequestMethod::Email(Box::new(SetRequest {
                     account_id: request.from_account_id,
                     if_in_state: request.destroy_from_if_in_state,
                     create: None,
                     update: None,
                     destroy: MaybeResultReference::Value(destroy_ids).into(),
                     arguments: Default::default(),
-                })),
+                }))),
             }
             .into();
         }

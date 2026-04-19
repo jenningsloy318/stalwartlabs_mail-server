@@ -625,7 +625,7 @@ impl PropFindRequestHandler for Server {
                                         &query.propfind,
                                     )
                                     .await?
-                                    .map(DavValue::Response)
+                                    .map(|r| DavValue::Response(Box::new(r)))
                                     .unwrap_or(DavValue::Null),
                                 ));
                             }
@@ -675,7 +675,7 @@ impl PropFindRequestHandler for Server {
                                         &query.propfind,
                                     )
                                     .await?
-                                    .map(DavValue::Response)
+                                    .map(|r| DavValue::Response(Box::new(r)))
                                     .unwrap_or(DavValue::Null),
                                 ));
                             }

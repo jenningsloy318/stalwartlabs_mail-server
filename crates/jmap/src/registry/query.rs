@@ -403,7 +403,7 @@ impl RegistryQueryFilters for QueryRequest<Registry> {
             .unwrap_or_default()
             .into_iter()
             .next()
-            .unwrap_or_else(|| Comparator::ascending(RegistryComparator::Property(Property::Id)));
+            .unwrap_or_else(|| Comparator::descending(RegistryComparator::Property(Property::Id)));
 
         match comparator.property {
             RegistryComparator::Property(property) => {

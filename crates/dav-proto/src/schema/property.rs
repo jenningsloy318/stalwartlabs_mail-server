@@ -165,7 +165,7 @@ pub enum DavValue {
     Href(List<Href>),
     Acl(List<Ace>),
     AclRestrictions(AclRestrictions),
-    Response(Response),
+    Response(Box<Response>),
     DeadProperty(DeadProperty),
     SupportedAddressData,
     SupportedCalendarData,

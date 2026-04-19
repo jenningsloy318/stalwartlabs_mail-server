@@ -7,7 +7,7 @@
 use crate::Directory;
 use crate::backend::oidc::lookup::fetch_jwks_keys;
 use crate::backend::oidc::{
-    DiscoveryDocument, JwksCache, OidcError, OpenIdConfig, OpenIdDirectory,
+    DiscoveryDocument, JwksCache, OidcConfig, OidcDiscovery, OidcError, OpenIdDirectory,
 };
 use registry::schema::structs;
 use reqwest::Client;
@@ -17,7 +17,7 @@ use trc::AuthEvent;
 
 impl OpenIdDirectory {
     pub async fn open(config: structs::OidcDirectory) -> Result<Directory, String> {
-        Self::new(OpenIdConfig {
+        Self::new(OidcConfig {
             issue_url: config.issuer_url,
             require_aud: config.require_audience,
             require_scopes: config.require_scopes.into_inner(),
@@ -31,7 +31,7 @@ impl OpenIdDirectory {
         .map_err(|err| err.to_string())
     }
 
-    pub async fn new(config: OpenIdConfig) -> Result<Self, OidcError> {
+    pub async fn new(config: OidcConfig) -> Result<Self, OidcError> {
         let http = Client::builder()
             .user_agent("Stalwart/1.0")
             .timeout(Duration::from_secs(30))
@@ -133,8 +133,11 @@ impl OpenIdDirectory {
         });
 
         Ok(Self {
+            discovery: OidcDiscovery {
+                url: config.issue_url.clone(),
+                document: discovery,
+            },
             config,
-            discovery,
             http,
             cache,
         })

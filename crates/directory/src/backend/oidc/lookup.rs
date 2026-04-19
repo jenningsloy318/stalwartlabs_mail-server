@@ -63,7 +63,7 @@ impl OpenIdDirectory {
                 validation.validate_aud = false;
             }
 
-            validation.set_issuer(&[&self.discovery.issuer]);
+            validation.set_issuer(&[&self.discovery.document.issuer]);
             validation.leeway = 60;
 
             match decode::<serde_json::Value>(token, dk, &validation) {
@@ -115,7 +115,7 @@ impl OpenIdDirectory {
             }
         }
 
-        let new_keys = fetch_jwks_keys(&self.http, &self.discovery.jwks_uri).await?;
+        let new_keys = fetch_jwks_keys(&self.http, &self.discovery.document.jwks_uri).await?;
         {
             let mut guard = self.cache.write().await;
             guard.keys = new_keys;
@@ -146,7 +146,7 @@ impl OpenIdDirectory {
     async fn fetch_userinfo(&self, token: &str) -> Result<serde_json::Value, OidcError> {
         let resp = self
             .http
-            .get(&self.discovery.userinfo_endpoint)
+            .get(&self.discovery.document.userinfo_endpoint)
             .bearer_auth(token)
             .send()
             .await

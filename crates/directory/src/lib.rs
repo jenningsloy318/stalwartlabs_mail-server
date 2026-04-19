@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-#![warn(clippy::large_futures)]
+#![deny(clippy::large_futures)]
 
 use crate::backend::oidc::OpenIdDirectory;
 use backend::{ldap::LdapDirectory, sql::SqlDirectory};
@@ -28,6 +28,7 @@ pub enum Credentials {
     },
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum Directory {
     Ldap(LdapDirectory),
     Sql(SqlDirectory),

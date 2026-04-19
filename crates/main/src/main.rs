@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-#![warn(clippy::large_futures)]
+#![deny(clippy::large_futures)]
 #![warn(clippy::cast_possible_truncation)]
 #![warn(clippy::cast_possible_wrap)]
 #![warn(clippy::cast_sign_loss)]
@@ -32,6 +32,11 @@ static GLOBAL: Jemalloc = Jemalloc;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    // Install AWS-LC-RS as the default Rustls crypto provider
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .expect("failed to install aws-lc-rs as the default rustls crypto provider");
+
     // Load config and apply macros
     let mut init = Box::pin(BootManager::init()).await;
 

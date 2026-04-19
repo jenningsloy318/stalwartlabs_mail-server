@@ -21,6 +21,7 @@ use crate::registry::{
         public_key::validate_public_key,
         queued_message::queued_message_set,
         report::report_set,
+        sieve::validate_sieve_script,
         spam_sample::spam_sample_set,
         task::task_set,
         tls::{validate_acme_provider, validate_certificate},
@@ -47,7 +48,10 @@ use registry::{
             OBJ_FILTER_ACCOUNT, OBJ_FILTER_TENANT, OBJ_SINGLETON, Object, ObjectInner, ObjectType,
             Property,
         },
-        structs::{Certificate, DkimSignature, DnsServer, Domain, PublicKey, Role, Task},
+        structs::{
+            Certificate, DkimSignature, DnsServer, Domain, PublicKey, Role, SieveSystemScript,
+            SieveUserScript, Task,
+        },
     },
     types::id::ObjectId,
 };
@@ -467,6 +471,24 @@ impl RegistrySet for Server {
                         ObjectInner::Certificate(cert) => {
                             validate_certificate(cert, modification.as_certificate()).await?
                         }
+                        ObjectInner::SieveUserScript(SieveUserScript { contents, .. }) => {
+                            validate_sieve_script(
+                                set.server,
+                                contents,
+                                modification.as_sieve_script(),
+                                false,
+                            )
+                            .await?
+                        }
+                        ObjectInner::SieveSystemScript(SieveSystemScript { contents, .. }) => {
+                            validate_sieve_script(
+                                set.server,
+                                contents,
+                                modification.as_sieve_script(),
+                                true,
+                            )
+                            .await?
+                        }
                         _ => Ok(ObjectResponse::default()),
                     };
 
@@ -811,6 +833,19 @@ impl Modification {
             Modification::Create { .. } => None,
             Modification::Update { object, .. } => match &object.inner {
                 ObjectInner::Certificate(cert) => Some(cert),
+                _ => None,
+            },
+        }
+    }
+
+    fn as_sieve_script(&self) -> Option<&str> {
+        match self {
+            Modification::Create { .. } => None,
+            Modification::Update { object, .. } => match &object.inner {
+                ObjectInner::SieveUserScript(SieveUserScript { contents, .. })
+                | ObjectInner::SieveSystemScript(SieveSystemScript { contents, .. }) => {
+                    Some(contents.as_str())
+                }
                 _ => None,
             },
         }

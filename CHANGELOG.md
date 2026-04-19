@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file. This projec
 This version includes **multiple breaking changes**. If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
 ## Added
+- [Web UI](https://github.com/stalwartlabs/webui) rewritten from the ground up using the JMAP management API, featuring a refreshed design and addressing 76 enhancement requests and bug fixes.
+- [CLI](https://github.com/stalwartlabs/cli) rewritten from the ground up to use the JMAP management API.
 - Security enhancements:
   - Password strength enforcement using the `zxcvbn` algorithm
   - Password expiration, rotation policies and IP address restrictions for user accounts
@@ -90,6 +92,7 @@ This version includes **multiple breaking changes**. If you are upgrading from v
   - Return `304` `NOT_MODIFIED` on `If-None-Match`
   - Use RFC 2616 instead of RFC 1123 for date formatting
   - Fix ACL container/item mismatch in reports.
+  - CalDAV: Allow organized properties to be present in `PUT` requests if they are equal to the existing ones.
 - Configuration: Prefix parsing issues (#2495)
 - OIDC: JWKS Exposes Symmetric Signing Key
 - SQLite: Fix thread pool exhaustion.

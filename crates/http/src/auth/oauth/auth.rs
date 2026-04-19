@@ -133,7 +133,9 @@ impl OAuthApiHandler for Server {
                 .await?
                 .and_then(|directory| directory.oidc_discovery_document())
         {
-            Ok(JsonResponse::new(endpoint).no_cache().into_http_response())
+            Ok(JsonResponse::new(&endpoint.document)
+                .no_cache()
+                .into_http_response())
         } else {
             self.handle_oidc_metadata(req, session).await
         }

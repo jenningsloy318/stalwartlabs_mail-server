@@ -537,6 +537,10 @@ pub(crate) async fn queued_message_query(
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 async fn tenant_domains(server: &Server, tenant_id: u32) -> trc::Result<AHashSet<String>> {
     let domain_ids = server
         .registry()
@@ -552,6 +556,12 @@ async fn tenant_domains(server: &Server, tenant_id: u32) -> trc::Result<AHashSet
     }
 
     Ok(domains)
+}
+// SPDX-SnippetEnd
+
+#[cfg(not(feature = "enterprise"))]
+async fn tenant_domains(_server: &Server, _tenant_id: u32) -> trc::Result<AHashSet<String>> {
+    Ok(AHashSet::new())
 }
 
 fn map_message(message_in: &ArchivedMessage) -> QueuedMessage {

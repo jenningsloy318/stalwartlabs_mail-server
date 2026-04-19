@@ -115,12 +115,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> SmtpClient<T> {
                     return Ok(());
                 }
                 _ => {
-                    return Err(ClientError::UnexpectedReply(reply));
+                    return Err(ClientError::UnexpectedReply(Box::new(reply)));
                 }
             }
         }
 
-        Err(ClientError::UnexpectedReply(reply))
+        Err(ClientError::UnexpectedReply(Box::new(reply)))
     }
 
     pub async fn read_greeting(
@@ -327,7 +327,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> SmtpClient<T> {
                     smtp_proto::Error::InvalidResponse { code } => {
                         match ResponseReceiver::from_code(code).parse(&mut iter) {
                             Ok(response) => {
-                                return Err(ClientError::UnexpectedReply(response));
+                                return Err(ClientError::UnexpectedReply(Box::new(response)));
                             }
                             Err(smtp_proto::Error::NeedsMoreData { .. }) => {
                                 if buf_concat.is_empty() {

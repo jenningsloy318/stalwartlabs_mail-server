@@ -14,7 +14,7 @@ use utils::Client;
 pub mod config;
 pub mod lookup;
 
-pub struct OpenIdConfig {
+pub struct OidcConfig {
     pub issue_url: String,
     pub require_aud: Option<String>,
     pub require_scopes: Vec<String>,
@@ -22,6 +22,11 @@ pub struct OpenIdConfig {
     pub claim_name: Option<String>,
     pub claim_groups: Option<String>,
     pub default_domain: Option<String>,
+}
+
+pub struct OidcDiscovery {
+    pub url: String,
+    pub document: DiscoveryDocument,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -52,8 +57,8 @@ struct JwksCache {
 }
 
 pub struct OpenIdDirectory {
-    config: OpenIdConfig,
-    pub discovery: DiscoveryDocument,
+    config: OidcConfig,
+    pub discovery: OidcDiscovery,
     http: Client,
     cache: RwLock<JwksCache>,
 }

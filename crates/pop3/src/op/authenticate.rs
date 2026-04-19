@@ -39,7 +39,7 @@ impl<T: SessionStream> Session<T> {
                                 .details("Invalid SASL challenge")
                         })?;
 
-                    self.handle_auth(credentials).await
+                    Box::pin(self.handle_auth(credentials)).await
                 } else {
                     // TODO: This hack is temporary until the SASL library is developed
                     self.receiver.state = request::State::Argument {

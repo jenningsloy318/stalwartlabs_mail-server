@@ -47,12 +47,13 @@ impl BootstrapDefaults for Bootstrap {
 }
 
 async fn insert_safe_defaults(bp: &mut Bootstrap) -> trc::Result<()> {
-    if bp.registry.is_recovery_mode() {
-        return Ok(());
-    }
+    let is_recovery_mode = bp.registry.is_recovery_mode();
+    let is_bootstrap_mode = bp.registry.is_bootstrap_mode();
 
     #[cfg(not(feature = "test_mode"))]
-    if bp.registry.count_object(ObjectType::Application).await? == 0 {
+    if (!is_recovery_mode || is_bootstrap_mode)
+        && bp.registry.count_object(ObjectType::Application).await? == 0
+    {
         bp.registry
             .write(RegistryWrite::insert(
                 &Application {
@@ -73,7 +74,7 @@ async fn insert_safe_defaults(bp: &mut Bootstrap) -> trc::Result<()> {
             .await?;
     }
 
-    if bp.registry.is_bootstrap_mode() {
+    if is_bootstrap_mode {
         #[cfg(not(any(feature = "dev_mode", feature = "test_mode")))]
         if bp.registry.count_object(ObjectType::SystemSettings).await? == 0 {
             bp.registry
@@ -87,6 +88,10 @@ async fn insert_safe_defaults(bp: &mut Bootstrap) -> trc::Result<()> {
                 .await?;
         }
 
+        return Ok(());
+    }
+
+    if is_recovery_mode {
         return Ok(());
     }
 

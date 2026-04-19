@@ -28,6 +28,8 @@ use std::{borrow::Cow, fmt::Display};
 use trc::AddContext;
 use types::id::Id;
 
+const MAX_OBJECT_PAYLOAD_SIZE: usize = 200_000;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum RegistryWriteResult {
     Success(Id),
@@ -307,6 +309,18 @@ impl RegistryStore {
 
         // It's pickle time!
         let out = object.inner.to_pickled_vec();
+        if out.len() > MAX_OBJECT_PAYLOAD_SIZE {
+            return Ok(RegistryWriteResult::ValidationError {
+                errors: vec![ValidationError::Invalid {
+                    property: Property::Id,
+                    value: format!(
+                        "Object size {} exceeds maximum of {}",
+                        out.len(),
+                        MAX_OBJECT_PAYLOAD_SIZE
+                    ),
+                }],
+            });
+        }
 
         // Build batch
         if write_id {

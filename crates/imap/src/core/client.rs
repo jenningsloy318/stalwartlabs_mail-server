@@ -175,12 +175,10 @@ impl<T: SessionStream> Session<T> {
                     .handle_namespace(request)
                     .await
                     .map(|_| SessionResult::Continue),
-                Command::Authenticate => self
-                    .handle_authenticate(request)
+                Command::Authenticate => Box::pin(self.handle_authenticate(request))
                     .await
                     .map(|_| SessionResult::Continue),
-                Command::Login => self
-                    .handle_login(request)
+                Command::Login => Box::pin(self.handle_login(request))
                     .await
                     .map(|_| SessionResult::Continue),
                 Command::Capability => self

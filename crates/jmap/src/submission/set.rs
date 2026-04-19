@@ -272,7 +272,7 @@ impl EmailSubmissionSet for Server {
             *next_call = Call {
                 id: String::new(),
                 name: MethodName::new(MethodObject::Email, MethodFunction::Set),
-                method: RequestMethod::Set(SetRequestMethod::Email(SetRequest {
+                method: RequestMethod::Set(SetRequestMethod::Email(Box::new(SetRequest {
                     account_id: request.account_id,
                     if_in_state: None,
                     create: None,
@@ -309,7 +309,7 @@ impl EmailSubmissionSet for Server {
                         )
                     }),
                     arguments: Default::default(),
-                })),
+                }))),
             }
             .into();
         }

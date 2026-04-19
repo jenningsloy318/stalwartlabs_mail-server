@@ -245,17 +245,18 @@ impl WebApplicationManager {
             resource
         };
 
-        // Uncompress
-        let mut bundle = zip::ZipArchive::new(Cursor::new(bundle)).map_err(|err| {
-            trc::ResourceEvent::Error
-                .caused_by(trc::location!())
-                .reason(err)
-                .ctx(Key::Url, self.url.clone())
-                .details("Failed to decompress application bundle")
-        })?;
-        let mut routes = AHashMap::new();
-        for i in 0..bundle.len() {
-            let (file_name, contents) = {
+        let url = self.url.clone();
+        let bundle_path = self.bundle_path.path.clone();
+        let routes = tokio::task::spawn_blocking(move || -> trc::Result<_> {
+            let mut bundle = zip::ZipArchive::new(Cursor::new(bundle)).map_err(|err| {
+                trc::ResourceEvent::Error
+                    .caused_by(trc::location!())
+                    .reason(err)
+                    .ctx(Key::Url, url.clone())
+                    .details("Failed to decompress application bundle")
+            })?;
+            let mut routes = AHashMap::new();
+            for i in 0..bundle.len() {
                 let mut file = bundle.by_index(i).map_err(|err| {
                     trc::ResourceEvent::Error
                         .caused_by(trc::location!())
@@ -268,35 +269,43 @@ impl WebApplicationManager {
 
                 let mut contents = Vec::new();
                 file.read_to_end(&mut contents).map_err(unpack_error)?;
-                (file.name().to_string(), contents)
-            };
-            let path = self.bundle_path.path.join(format!("{i:02}"));
-            tokio::fs::write(&path, contents)
-                .await
-                .map_err(unpack_error)?;
+                let file_name = file.name().to_string();
+                drop(file);
 
-            let resource = Resource {
-                content_type: match file_name
-                    .rsplit_once('.')
-                    .map(|(_, ext)| ext)
-                    .unwrap_or_default()
-                {
-                    "html" => "text/html",
-                    "css" => "text/css",
-                    "wasm" => "application/wasm",
-                    "js" => "application/javascript",
-                    "json" => "application/json",
-                    "png" => "image/png",
-                    "svg" => "image/svg+xml",
-                    "ico" => "image/x-icon",
-                    _ => "application/octet-stream",
-                }
-                .into(),
-                contents: path,
-            };
+                let path = bundle_path.join(format!("{i:02}"));
+                std::fs::write(&path, contents).map_err(unpack_error)?;
 
-            routes.insert(file_name, resource);
-        }
+                let resource = Resource {
+                    content_type: match file_name
+                        .rsplit_once('.')
+                        .map(|(_, ext)| ext)
+                        .unwrap_or_default()
+                    {
+                        "html" => "text/html",
+                        "css" => "text/css",
+                        "wasm" => "application/wasm",
+                        "js" => "application/javascript",
+                        "json" => "application/json",
+                        "png" => "image/png",
+                        "svg" => "image/svg+xml",
+                        "ico" => "image/x-icon",
+                        _ => "application/octet-stream",
+                    }
+                    .into(),
+                    contents: path,
+                };
+
+                routes.insert(file_name, resource);
+            }
+            Ok(routes)
+        })
+        .await
+        .map_err(|err| {
+            trc::ResourceEvent::Error
+                .caused_by(trc::location!())
+                .reason(err)
+                .details("Bundle unpack task panicked")
+        })??;
 
         trc::event!(
             Resource(trc::ResourceEvent::ApplicationUnpacked),

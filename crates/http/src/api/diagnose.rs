@@ -649,7 +649,7 @@ async fn delivery_diagnose(
                             if r.is_positive_completion() {
                                 Ok(r)
                             } else {
-                                Err(ClientError::UnexpectedReply(r))
+                                Err(ClientError::UnexpectedReply(Box::new(r)))
                             }
                         }) {
                             Ok(_) => {
@@ -669,7 +669,7 @@ async fn delivery_diagnose(
                                         if r.is_positive_completion() {
                                             Ok(r)
                                         } else {
-                                            Err(ClientError::UnexpectedReply(r))
+                                            Err(ClientError::UnexpectedReply(Box::new(r)))
                                         }
                                     }) {
                                     Ok(_) => {

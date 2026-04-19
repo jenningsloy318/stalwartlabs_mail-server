@@ -241,7 +241,7 @@ pub fn spawn_task_manager(inner: Arc<Inner>) {
                                     server.store_maintenance(task).await
                                 }
                                 Task::SpamFilterMaintenance(task) => {
-                                    server.spam_filter_maintenance(task).await
+                                    Box::pin(server.spam_filter_maintenance(task)).await
                                 }
                                 Task::AcmeRenewal(task) => server.acme_management(task).await,
                                 Task::DkimManagement(task_dkim_rotation) => {

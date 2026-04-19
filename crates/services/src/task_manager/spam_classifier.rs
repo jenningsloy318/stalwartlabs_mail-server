@@ -56,12 +56,12 @@ async fn spam_filter_maintenance(
     match task.maintenance_type {
         TaskSpamFilterMaintenanceType::Train => {
             if !server.inner.ipc.train_task_controller.is_running() {
-                server.spam_train(false).await?;
+                Box::pin(server.spam_train(false)).await?;
             }
         }
         TaskSpamFilterMaintenanceType::Retrain => {
             if !server.inner.ipc.train_task_controller.is_running() {
-                server.spam_train(true).await?;
+                Box::pin(server.spam_train(true)).await?;
             }
         }
         TaskSpamFilterMaintenanceType::Reset => {
@@ -247,9 +247,8 @@ async fn update_spam_rules(server: &Server) -> trc::Result<TaskResult> {
     }
 
     if reload_settings {
-        if let Err(err) = server
-            .reload_registry(RegistryChange::Reload(ObjectType::SpamRule))
-            .await
+        if let Err(err) =
+            Box::pin(server.reload_registry(RegistryChange::Reload(ObjectType::SpamRule))).await
         {
             trc::error!(err.details("Failed to reload registry after updating spam rules"));
         }
@@ -261,9 +260,10 @@ async fn update_spam_rules(server: &Server) -> trc::Result<TaskResult> {
     }
 
     if reload_lookups {
-        if let Err(err) = server
-            .reload_registry(RegistryChange::Reload(ObjectType::MemoryLookupKey))
-            .await
+        if let Err(err) = Box::pin(
+            server.reload_registry(RegistryChange::Reload(ObjectType::MemoryLookupKey)),
+        )
+        .await
         {
             trc::error!(err.details("Failed to reload registry after updating spam rules"));
         }

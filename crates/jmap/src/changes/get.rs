@@ -335,8 +335,10 @@ impl IntermediateChangesResponse {
     }
 }
 
-fn transmute_response<T: JmapObject>(response: ChangesResponse<NullObject>) -> ChangesResponse<T> {
-    ChangesResponse {
+fn transmute_response<T: JmapObject>(
+    response: ChangesResponse<NullObject>,
+) -> Box<ChangesResponse<T>> {
+    Box::new(ChangesResponse {
         account_id: response.account_id,
         old_state: response.old_state,
         new_state: response.new_state,
@@ -345,5 +347,5 @@ fn transmute_response<T: JmapObject>(response: ChangesResponse<NullObject>) -> C
         updated: response.updated,
         destroyed: response.destroyed,
         updated_properties: None,
-    }
+    })
 }

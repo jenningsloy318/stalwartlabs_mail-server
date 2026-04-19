@@ -126,7 +126,7 @@ impl MessageWrapper {
             if r.is_positive_completion() {
                 Ok(r)
             } else {
-                Err(ClientError::UnexpectedReply(r))
+                Err(ClientError::UnexpectedReply(Box::new(r)))
             }
         }) {
             Ok(response) => {
@@ -301,7 +301,7 @@ impl MessageWrapper {
                                 Status::from_smtp_error(
                                     params.hostname,
                                     bdat_cmd.as_deref().unwrap_or("DATA"),
-                                    ClientError::UnexpectedReply(response),
+                                    ClientError::UnexpectedReply(Box::new(response)),
                                 ),
                                 rcpt_idxs,
                             ));

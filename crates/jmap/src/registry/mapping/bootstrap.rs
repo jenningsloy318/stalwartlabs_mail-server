@@ -5,10 +5,13 @@
  */
 
 use crate::registry::{
-    mapping::{RegistryGetResponse, RegistrySetResponse},
+    mapping::{RegistryGetResponse, RegistrySetResponse, map_bootstrap_error},
     set::map_write_error,
 };
-use common::{DATABASE_SCHEMA_VERSION, Server, network::acme::account::acme_create_account, psl};
+use common::{
+    DATABASE_SCHEMA_VERSION, Server, config::storage::Storage,
+    network::acme::account::acme_create_account, psl,
+};
 use directory::core::secret::hash_secret;
 use jmap_proto::error::set::{SetError, SetErrorType};
 use jmap_tools::{JsonPointer, JsonPointerItem, Key};
@@ -243,6 +246,15 @@ pub(crate) async fn bootstrap_set(
                     }
                 }
             }
+        }
+        let mut bp_check =
+            store::registry::bootstrap::Bootstrap::new_uninitialized(tmp_registry.clone());
+        let _ = Storage::parse(&mut bp_check).await;
+        if !bp_check.errors.is_empty() {
+            set.response
+                .not_updated
+                .append(id, map_bootstrap_error(bp_check.errors));
+            break 'outer;
         }
 
         // Create inner store

@@ -100,11 +100,11 @@ impl<T: SessionStream> Session<T> {
                                 } else {
                                     unreachable!()
                                 };
-                            self.handle_auth(Credentials::Basic {
+                            Box::pin(self.handle_auth(Credentials::Basic {
                                 username,
                                 secret: string,
                                 mfa_token: None,
-                            })
+                            }))
                             .await
                             .map(|_| SessionResult::Continue)
                         }
@@ -147,10 +147,11 @@ impl<T: SessionStream> Session<T> {
                             self.handle_stls().await.map(|_| SessionResult::UpgradeTls)
                         }
                         Command::Utf8 => self.handle_utf8().await.map(|_| SessionResult::Continue),
-                        Command::Auth { mechanism, params } => self
-                            .handle_sasl(mechanism, params)
-                            .await
-                            .map(|_| SessionResult::Continue),
+                        Command::Auth { mechanism, params } => Box::pin(
+                            self.handle_sasl(mechanism, params),
+                        )
+                        .await
+                        .map(|_| SessionResult::Continue),
                         Command::Apop { .. } => Err(trc::Pop3Event::Error
                             .into_err()
                             .details("APOP not supported.")),

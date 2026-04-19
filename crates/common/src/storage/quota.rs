@@ -30,7 +30,10 @@ impl Server {
             .await
             .add_context(|err| err.caused_by(trc::location!()).account_id(account_id))
     }
-
+    // SPDX-SnippetBegin
+    // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+    // SPDX-License-Identifier: LicenseRef-SEL
+    #[cfg(feature = "enterprise")]
     pub async fn get_used_quota_tenant(&self, tenant_id: u32) -> trc::Result<i64> {
         self.core
             .storage
@@ -38,6 +41,12 @@ impl Server {
             .get_counter(ValueKey::from(ValueClass::TenantQuota(tenant_id)))
             .await
             .add_context(|err| err.caused_by(trc::location!()))
+    }
+    // SPDX-SnippetEnd
+
+    #[cfg(not(feature = "enterprise"))]
+    pub async fn get_used_quota_tenant(&self, _tenant_id: u32) -> trc::Result<i64> {
+        Ok(0)
     }
 
     pub async fn has_available_quota(

@@ -49,7 +49,7 @@ pub async fn test() {
 
     // Make sure the userinfo endpoint is not being used
     if let Directory::OpenId(directory) = &mut oidc {
-        directory.discovery.userinfo_endpoint = "http://invalid".to_string();
+        directory.discovery.document.userinfo_endpoint = "http://invalid".to_string();
     }
 
     // JWT authentication should still work without the userinfo endpoint
@@ -108,7 +108,7 @@ pub async fn test() {
     assert_eq!(
         oidc.oidc_discovery_document()
             .as_ref()
-            .map(|oidc| oidc.authorization_endpoint.as_str()),
+            .map(|oidc| oidc.document.authorization_endpoint.as_str()),
         Some("http://localhost:9080/realms/stalwart/protocol/openid-connect/auth")
     );
 }

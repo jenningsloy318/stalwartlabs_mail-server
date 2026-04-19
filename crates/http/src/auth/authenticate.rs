@@ -82,13 +82,12 @@ impl Authenticator for Server {
             };
 
             // Authenticate
-            let access_token = self
-                .authenticate(&AuthRequest::from_credentials(
-                    credentials,
-                    session.session_id,
-                    session.remote_ip,
-                ))
-                .await?;
+            let access_token = Box::pin(self.authenticate(&AuthRequest::from_credentials(
+                credentials,
+                session.session_id,
+                session.remote_ip,
+            )))
+            .await?;
 
             // Cache credentials
             self.inner.cache.http_auth.insert(

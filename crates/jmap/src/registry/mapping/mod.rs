@@ -32,6 +32,7 @@ pub mod principal;
 pub mod public_key;
 pub mod queued_message;
 pub mod report;
+pub mod sieve;
 pub mod spam_sample;
 pub mod task;
 pub mod tls;

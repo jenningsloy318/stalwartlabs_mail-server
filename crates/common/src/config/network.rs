@@ -43,9 +43,15 @@ pub struct Network {
 
 #[derive(Clone)]
 pub struct NetworkInfo {
-    pub pacc: String,
+    pub pacc: Pacc,
     pub mxs: Vec<MailExchanger>,
     pub services: VecMap<ServiceProtocol, Service>,
+}
+
+#[derive(Clone)]
+pub struct Pacc {
+    pub prefix: String,
+    pub suffix: String,
 }
 
 #[derive(Clone)]
@@ -172,10 +178,13 @@ impl Network {
             has_acme_tls_challenge = true;
         }
 
+        const SPLIT_HERE: &str = "$$__SPLIT_HERE__$$";
         let mut pacc = Configuration {
             protocols: Protocols::default(),
             authentication: Some(Authentication {
-                oauth_public: None,
+                oauth_public: Some(OAuthPublic {
+                    issuer: SPLIT_HERE.to_string(),
+                }),
                 password: true,
             }),
             info: Info {
@@ -199,10 +208,6 @@ impl Network {
                     if hostname != http_host {
                         http_host = hostname.to_string();
                     }
-                    pacc.authentication.as_mut().unwrap().oauth_public = OAuthPublic {
-                        issuer: format!("https://{hostname}/",),
-                    }
-                    .into();
                     pacc.protocols.jmap = HttpServer {
                         url: format!("https://{hostname}/jmap/session",),
                     }
@@ -307,6 +312,11 @@ impl Network {
             }
         }
 
+        let (prefix, suffix) = serde_json::to_string(&pacc)
+            .unwrap_or_default()
+            .rsplit_once(SPLIT_HERE)
+            .map(|(prefix, suffix)| (prefix.to_string(), suffix.to_string()))
+            .unwrap();
         let mut network = Network {
             node_id: bp.node_id() as u64,
             server_name: system.default_hostname,
@@ -321,7 +331,7 @@ impl Network {
             info: NetworkInfo {
                 mxs: system.mail_exchangers.into_iter().collect(),
                 services: system.services,
-                pacc: serde_json::to_string(&pacc).unwrap_or_default(),
+                pacc: Pacc { prefix, suffix },
             },
         };
 

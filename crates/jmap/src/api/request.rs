@@ -78,7 +78,6 @@ pub trait RequestHandler: Sync + Send {
 }
 
 impl RequestHandler for Server {
-    #![allow(clippy::large_futures)]
     async fn handle_jmap_request<'x>(
         &self,
         request: Request<'x>,
@@ -236,102 +235,102 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Email)?;
 
-                    self.email_get(req, access_token).await?.into()
+                    self.email_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::Mailbox(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Mailbox)?;
 
-                    self.mailbox_get(req, access_token).await?.into()
+                    self.mailbox_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::Thread(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Email)?;
 
-                    self.thread_get(req).await?.into()
+                    self.thread_get(*req).await?.into()
                 }
                 GetRequestMethod::Identity(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.identity_get(req).await?.into()
+                    self.identity_get(*req).await?.into()
                 }
                 GetRequestMethod::EmailSubmission(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.email_submission_get(req).await?.into()
+                    self.email_submission_get(*req).await?.into()
                 }
                 GetRequestMethod::PushSubscription(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
-                    self.push_subscription_get(req, access_token).await?.into()
+                    self.push_subscription_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::Sieve(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.sieve_script_get(req).await?.into()
+                    self.sieve_script_get(*req).await?.into()
                 }
                 GetRequestMethod::VacationResponse(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.vacation_response_get(req).await?.into()
+                    self.vacation_response_get(*req).await?.into()
                 }
                 GetRequestMethod::Principal(req) => {
-                    self.principal_get(req, access_token).await?.into()
+                    self.principal_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::Quota(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.quota_get(req, access_token).await?.into()
+                    self.quota_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::Blob(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.blob_get(req, access_token).await?.into()
+                    self.blob_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::AddressBook(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::AddressBook)?;
 
-                    self.address_book_get(req, access_token).await?.into()
+                    self.address_book_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::ContactCard(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::ContactCard)?;
 
-                    self.contact_card_get(req, access_token).await?.into()
+                    self.contact_card_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::FileNode(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::FileNode)?;
 
-                    self.file_node_get(req, access_token).await?.into()
+                    self.file_node_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::PrincipalAvailability(req) => self
-                    .principal_get_availability(req, access_token)
+                    .principal_get_availability(*req, access_token)
                     .await?
                     .into(),
                 GetRequestMethod::Calendar(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Calendar)?;
 
-                    self.calendar_get(req, access_token).await?.into()
+                    self.calendar_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::CalendarEvent(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::CalendarEvent)?;
 
-                    self.calendar_event_get(req, access_token).await?.into()
+                    self.calendar_event_get(*req, access_token).await?.into()
                 }
                 GetRequestMethod::CalendarEventNotification(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.calendar_event_notification_get(req, access_token)
+                    self.calendar_event_notification_get(*req, access_token)
                         .await?
                         .into()
                 }
@@ -339,13 +338,13 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.participant_identity_get(req).await?.into()
+                    self.participant_identity_get(*req).await?.into()
                 }
                 GetRequestMethod::ShareNotification(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.share_notification_get(req).await?.into()
+                    self.share_notification_get(*req).await?.into()
                 }
                 GetRequestMethod::Registry(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
@@ -353,7 +352,7 @@ impl RequestHandler for Server {
 
                     Box::pin(self.registry_get(
                         method_name.obj.unwrap_registry(),
-                        req,
+                        *req,
                         access_token,
                     ))
                     .await?
@@ -365,70 +364,70 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Email)?;
 
-                    self.email_query(req, access_token).await?.into()
+                    self.email_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::Mailbox(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Mailbox)?;
 
-                    self.mailbox_query(req, access_token).await?.into()
+                    self.mailbox_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::EmailSubmission(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.email_submission_query(req).await?.into()
+                    self.email_submission_query(*req).await?.into()
                 }
                 QueryRequestMethod::Sieve(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.sieve_script_query(req).await?.into()
+                    self.sieve_script_query(*req).await?.into()
                 }
                 QueryRequestMethod::Principal(req) => {
-                    self.principal_query(req, access_token).await?.into()
+                    self.principal_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::Quota(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.quota_query(req, access_token).await?.into()
+                    self.quota_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::AddressBook(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::AddressBook)?;
 
-                    self.address_book_query(req, access_token).await?.into()
+                    self.address_book_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::ContactCard(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::ContactCard)?;
 
-                    self.contact_card_query(req, access_token).await?.into()
+                    self.contact_card_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::FileNode(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::FileNode)?;
 
-                    self.file_node_query(req, access_token).await?.into()
+                    self.file_node_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::Calendar(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Calendar)?;
 
-                    self.calendar_query(req, access_token).await?.into()
+                    self.calendar_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::CalendarEvent(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::CalendarEvent)?;
 
-                    self.calendar_event_query(req, access_token).await?.into()
+                    self.calendar_event_query(*req, access_token).await?.into()
                 }
                 QueryRequestMethod::CalendarEventNotification(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.calendar_event_notification_query(req, access_token)
+                    self.calendar_event_notification_query(*req, access_token)
                         .await?
                         .into()
                 }
@@ -436,7 +435,7 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.share_notification_query(req).await?.into()
+                    self.share_notification_query(*req).await?.into()
                 }
                 QueryRequestMethod::Registry(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
@@ -444,7 +443,7 @@ impl RequestHandler for Server {
 
                     Box::pin(self.registry_query(
                         method_name.obj.unwrap_registry(),
-                        req,
+                        *req,
                         access_token,
                     ))
                     .await?
@@ -456,37 +455,37 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Email)?;
 
-                    self.email_set(req, access_token, session).await?.into()
+                    self.email_set(*req, access_token, session).await?.into()
                 }
                 SetRequestMethod::Mailbox(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Mailbox)?;
 
-                    self.mailbox_set(req, access_token).await?.into()
+                    self.mailbox_set(*req, access_token).await?.into()
                 }
                 SetRequestMethod::Identity(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.identity_set(req).await?.into()
+                    self.identity_set(*req).await?.into()
                 }
                 SetRequestMethod::EmailSubmission(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.email_submission_set(req, &session.instance, next_call)
+                    self.email_submission_set(*req, &session.instance, next_call)
                         .await?
                         .into()
                 }
                 SetRequestMethod::PushSubscription(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
-                    self.push_subscription_set(req, access_token).await?.into()
+                    self.push_subscription_set(*req, access_token).await?.into()
                 }
                 SetRequestMethod::Sieve(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.sieve_script_set(req, access_token, session)
+                    self.sieve_script_set(*req, access_token, session)
                         .await?
                         .into()
                 }
@@ -494,13 +493,13 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.vacation_response_set(req, access_token).await?.into()
+                    self.vacation_response_set(*req, access_token).await?.into()
                 }
                 SetRequestMethod::AddressBook(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::AddressBook)?;
 
-                    self.address_book_set(req, access_token, session)
+                    self.address_book_set(*req, access_token, session)
                         .await?
                         .into()
                 }
@@ -508,7 +507,7 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::ContactCard)?;
 
-                    self.contact_card_set(req, access_token, session)
+                    self.contact_card_set(*req, access_token, session)
                         .await?
                         .into()
                 }
@@ -516,25 +515,25 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::FileNode)?;
 
-                    self.file_node_set(req, access_token, session).await?.into()
+                    self.file_node_set(*req, access_token, session).await?.into()
                 }
                 SetRequestMethod::ShareNotification(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.share_notification_set(req).await?.into()
+                    self.share_notification_set(*req).await?.into()
                 }
                 SetRequestMethod::Calendar(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Calendar)?;
 
-                    self.calendar_set(req, access_token, session).await?.into()
+                    self.calendar_set(*req, access_token, session).await?.into()
                 }
                 SetRequestMethod::CalendarEvent(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::CalendarEvent)?;
 
-                    self.calendar_event_set(req, access_token, session)
+                    self.calendar_event_set(*req, access_token, session)
                         .await?
                         .into()
                 }
@@ -542,7 +541,7 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.calendar_event_notification_set(req, access_token, session)
+                    self.calendar_event_notification_set(*req, access_token, session)
                         .await?
                         .into()
                 }
@@ -550,7 +549,7 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.participant_identity_set(req).await?.into()
+                    self.participant_identity_set(*req).await?.into()
                 }
                 SetRequestMethod::Registry(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
@@ -558,7 +557,7 @@ impl RequestHandler for Server {
 
                     Box::pin(self.registry_set(
                         method_name.obj.unwrap_registry(),
-                        req,
+                        *req,
                         access_token,
                         session,
                     ))
@@ -569,7 +568,7 @@ impl RequestHandler for Server {
             RequestMethod::Changes(mut req) => {
                 set_account_id_if_missing(&mut req.account_id, access_token);
 
-                self.changes(req, method_name.obj, access_token)
+                self.changes(*req, method_name.obj, access_token)
                     .await?
                     .into_method_response()
             }
@@ -582,7 +581,7 @@ impl RequestHandler for Server {
                         .assert_has_access(req.account_id, Collection::Email)?
                         .assert_has_access(req.from_account_id, Collection::Email)?;
 
-                    self.email_copy(req, access_token, next_call, session)
+                    self.email_copy(*req, access_token, next_call, session)
                         .await?
                         .into()
                 }
@@ -590,7 +589,7 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_is_member(req.account_id)?;
 
-                    self.blob_copy(req, access_token).await?.into()
+                    self.blob_copy(*req, access_token).await?.into()
                 }
                 CopyRequestMethod::ContactCard(mut req) => {
                     set_account_id_if_missing(&mut req.from_account_id, access_token);
@@ -600,7 +599,7 @@ impl RequestHandler for Server {
                         .assert_has_access(req.account_id, Collection::ContactCard)?
                         .assert_has_access(req.from_account_id, Collection::ContactCard)?;
 
-                    self.contact_card_copy(req, access_token, next_call, session)
+                    self.contact_card_copy(*req, access_token, next_call, session)
                         .await?
                         .into()
                 }
@@ -612,7 +611,7 @@ impl RequestHandler for Server {
                         .assert_has_access(req.account_id, Collection::CalendarEvent)?
                         .assert_has_access(req.from_account_id, Collection::CalendarEvent)?;
 
-                    self.calendar_event_copy(req, access_token, next_call, session)
+                    self.calendar_event_copy(*req, access_token, next_call, session)
                         .await?
                         .into()
                 }
@@ -621,26 +620,26 @@ impl RequestHandler for Server {
                 set_account_id_if_missing(&mut req.account_id, access_token);
                 access_token.assert_has_access(req.account_id, Collection::Email)?;
 
-                self.email_import(req, access_token, session).await?.into()
+                self.email_import(*req, access_token, session).await?.into()
             }
             RequestMethod::Parse(req) => match req {
                 ParseRequestMethod::Email(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::Email)?;
 
-                    self.email_parse(req, access_token).await?.into()
+                    self.email_parse(*req, access_token).await?.into()
                 }
                 ParseRequestMethod::ContactCard(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::ContactCard)?;
 
-                    self.contact_card_parse(req, access_token).await?.into()
+                    self.contact_card_parse(*req, access_token).await?.into()
                 }
                 ParseRequestMethod::CalendarEvent(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::CalendarEvent)?;
 
-                    self.calendar_event_parse(req, access_token).await?.into()
+                    self.calendar_event_parse(*req, access_token).await?.into()
                 }
             },
             RequestMethod::QueryChanges(req) => self.query_changes(req, access_token).await?.into(),
@@ -648,25 +647,25 @@ impl RequestHandler for Server {
                 set_account_id_if_missing(&mut req.account_id, access_token);
                 access_token.assert_has_access(req.account_id, Collection::Email)?;
 
-                self.email_search_snippet(req, access_token).await?.into()
+                self.email_search_snippet(*req, access_token).await?.into()
             }
             RequestMethod::ValidateScript(mut req) => {
                 set_account_id_if_missing(&mut req.account_id, access_token);
                 access_token.assert_is_member(req.account_id)?;
 
-                self.sieve_script_validate(req, access_token).await?.into()
+                self.sieve_script_validate(*req, access_token).await?.into()
             }
             RequestMethod::LookupBlob(mut req) => {
                 set_account_id_if_missing(&mut req.account_id, access_token);
                 access_token.assert_is_member(req.account_id)?;
 
-                self.blob_lookup(req).await?.into()
+                self.blob_lookup(*req).await?.into()
             }
             RequestMethod::UploadBlob(mut req) => {
                 set_account_id_if_missing(&mut req.account_id, access_token);
                 access_token.assert_is_member(req.account_id)?;
 
-                self.blob_upload_many(req, access_token).await?.into()
+                self.blob_upload_many(*req, access_token).await?.into()
             }
             RequestMethod::Echo(req) => req.into(),
             RequestMethod::Error(error) => return Err(error),

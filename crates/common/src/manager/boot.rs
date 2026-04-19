@@ -14,17 +14,12 @@ use crate::{
     manager::defaults::BootstrapDefaults,
 };
 use arc_swap::ArcSwap;
-use pwhash::sha512_crypt;
 use std::{
     net::{IpAddr, Ipv4Addr},
     path::PathBuf,
     sync::Arc,
 };
-use store::{
-    RegistryStore,
-    rand::{Rng, distr::Alphanumeric, rng},
-    registry::bootstrap::Bootstrap,
-};
+use store::{RegistryStore, registry::bootstrap::Bootstrap};
 use tokio::sync::{Notify, mpsc};
 use utils::{UnwrapFailure, failed};
 
@@ -54,7 +49,6 @@ Options:
   -e, --export <PATH>              Export all store data to a specific path
   -i, --import <PATH>              Import store data from a specific path
   -o, --console                    Open the store console
-  -I, --init <PATH>                Initialize a new server at a specific path
   -h, --help                       Print help
   -V, --version                    Print version
 "#
@@ -98,10 +92,6 @@ impl BootManager {
                     }
                     ("config" | "c", Some(value)) => {
                         config_path = Some(value);
-                    }
-                    ("init" | "I", Some(value)) => {
-                        quickstart(value);
-                        std::process::exit(0);
                     }
                     ("export" | "e", Some(value)) => {
                         import_export = StoreOp::Export(BackupParams::new(value.into()));
@@ -153,7 +143,8 @@ impl BootManager {
         match import_export {
             StoreOp::None => {
                 // Parse components
-                let core = Box::pin(Core::parse(&mut bootstrap, storage)).await;
+                let core: Box<Core> =
+                    Box::new(Box::pin(Core::parse(&mut bootstrap, storage)).await);
                 let data = Data::parse(&mut bootstrap).await;
                 let cache = Caches::parse(&mut bootstrap).await;
 
@@ -211,7 +202,7 @@ impl BootManager {
                 );
                 let (ipc, ipc_rxs) = build_ipc(!core.storage.coordinator.is_none());
                 let inner = Arc::new(Inner {
-                    shared_core: ArcSwap::from_pointee(core),
+                    shared_core: ArcSwap::new(Arc::from(core)),
                     data,
                     ipc,
                     cache,
@@ -307,189 +298,3 @@ pub fn build_ipc(has_pubsub: bool) -> (Ipc, IpcReceivers) {
         },
     )
 }
-
-fn quickstart(path: impl Into<PathBuf>) {
-    let path = path.into();
-
-    if !path.exists() {
-        std::fs::create_dir_all(&path).failed("Failed to create directory");
-    }
-
-    for dir in &["etc", "data", "logs"] {
-        let sub_path = path.join(dir);
-        if !sub_path.exists() {
-            std::fs::create_dir(sub_path).failed(&format!("Failed to create {dir} directory"));
-        }
-    }
-
-    let admin_pass = std::env::var("STALWART_ADMIN_PASSWORD").unwrap_or_else(|_| {
-        rng()
-            .sample_iter(Alphanumeric)
-            .take(10)
-            .map(char::from)
-            .collect::<String>()
-    });
-
-    std::fs::write(
-        path.join("etc").join("registry.json"),
-        QUICKSTART_CONFIG
-            .replace("_P_", &path.to_string_lossy())
-            .replace("_S_", &sha512_crypt::hash(&admin_pass).unwrap()),
-    )
-    .failed("Failed to write configuration file");
-
-    eprintln!(
-        "✅ Local registry initialized at {}/etc/registry.json",
-        path.to_string_lossy()
-    );
-    eprintln!("🔑 Your administrator account is 'admin' with password '{admin_pass}'.");
-}
-
-#[cfg(not(feature = "foundation"))]
-const QUICKSTART_CONFIG: &str = r#"[server.listener.smtp]
-bind = "[::]:25"
-protocol = "smtp"
-
-[server.listener.submission]
-bind = "[::]:587"
-protocol = "smtp"
-
-[server.listener.submissions]
-bind = "[::]:465"
-protocol = "smtp"
-tls.implicit = true
-
-[server.listener.imap]
-bind = "[::]:143"
-protocol = "imap"
-
-[server.listener.imaptls]
-bind = "[::]:993"
-protocol = "imap"
-tls.implicit = true
-
-[server.listener.pop3]
-bind = "[::]:110"
-protocol = "pop3"
-
-[server.listener.pop3s]
-bind = "[::]:995"
-protocol = "pop3"
-tls.implicit = true
-
-[server.listener.sieve]
-bind = "[::]:4190"
-protocol = "managesieve"
-
-[server.listener.https]
-protocol = "http"
-bind = "[::]:443"
-tls.implicit = true
-
-[server.listener.http]
-protocol = "http"
-bind = "[::]:8080"
-
-[storage]
-data = "rocksdb"
-fts = "rocksdb"
-blob = "rocksdb"
-lookup = "rocksdb"
-directory = "internal"
-
-[store.rocksdb]
-type = "rocksdb"
-path = "_P_/data"
-compression = "lz4"
-
-[directory.internal]
-type = "internal"
-store = "rocksdb"
-
-[tracer.log]
-type = "log"
-level = "info"
-path = "_P_/logs"
-prefix = "stalwart.log"
-rotate = "daily"
-ansi = false
-enable = true
-
-[authentication.fallback-admin]
-user = "admin"
-secret = "_S_"
-"#;
-
-#[cfg(feature = "foundation")]
-const QUICKSTART_CONFIG: &str = r#"[server.listener.smtp]
-bind = "[::]:25"
-protocol = "smtp"
-
-[server.listener.submission]
-bind = "[::]:587"
-protocol = "smtp"
-
-[server.listener.submissions]
-bind = "[::]:465"
-protocol = "smtp"
-tls.implicit = true
-
-[server.listener.imap]
-bind = "[::]:143"
-protocol = "imap"
-
-[server.listener.imaptls]
-bind = "[::]:993"
-protocol = "imap"
-tls.implicit = true
-
-[server.listener.pop3]
-bind = "[::]:110"
-protocol = "pop3"
-
-[server.listener.pop3s]
-bind = "[::]:995"
-protocol = "pop3"
-tls.implicit = true
-
-[server.listener.sieve]
-bind = "[::]:4190"
-protocol = "managesieve"
-
-[server.listener.https]
-protocol = "http"
-bind = "[::]:443"
-tls.implicit = true
-
-[server.listener.http]
-protocol = "http"
-bind = "[::]:8080"
-
-[storage]
-data = "foundation-db"
-fts = "foundation-db"
-blob = "foundation-db"
-lookup = "foundation-db"
-directory = "internal"
-
-[store.foundation-db]
-type = "foundationdb"
-compression = "lz4"
-
-[directory.internal]
-type = "internal"
-store = "foundation-db"
-
-[tracer.log]
-type = "log"
-level = "info"
-path = "_P_/logs"
-prefix = "stalwart.log"
-rotate = "daily"
-ansi = false
-enable = true
-
-[authentication.fallback-admin]
-user = "admin"
-secret = "_S_"
-"#;

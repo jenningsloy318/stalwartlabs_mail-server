@@ -350,6 +350,10 @@ pub(crate) async fn validate_role(
     }
 }
 
+// SPDX-SnippetBegin
+// SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+// SPDX-License-Identifier: LicenseRef-SEL
+#[cfg(feature = "enterprise")]
 pub(crate) async fn validate_tenant_quota(
     set: &RegistrySetResponse<'_>,
     quota: TenantStorageQuota,
@@ -410,6 +414,15 @@ pub(crate) async fn validate_tenant_quota(
     }
 
     Ok(Ok(ObjectResponse::default()))
+}
+// SPDX-SnippetEnd
+
+#[cfg(not(feature = "enterprise"))]
+pub(crate) async fn validate_tenant_quota(
+    _set: &RegistrySetResponse<'_>,
+    _quota: TenantStorageQuota,
+) -> ValidationResult {
+    ValidationResult::Ok(Ok(ObjectResponse::default()))
 }
 
 pub(crate) async fn schedule_account_destruction(

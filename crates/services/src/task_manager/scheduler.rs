@@ -464,9 +464,10 @@ pub fn spawn_task_scheduler(inner: Arc<Inner>) {
                             Type = "validateLicense"
                         );
 
-                        match server
-                            .reload_registry(RegistryChange::Reload(ObjectType::Enterprise))
-                            .await
+                        match Box::pin(
+                            server.reload_registry(RegistryChange::Reload(ObjectType::Enterprise)),
+                        )
+                        .await
                         {
                             Ok(result) => {
                                 if !result.has_errors() {

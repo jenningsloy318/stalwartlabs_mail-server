@@ -14956,7 +14956,7 @@ impl Default for Imap {
         Self {
             allow_plain_text_auth: false,
             max_auth_failures: 3u64,
-            max_concurrent: Some(6u64),
+            max_concurrent: Some(16u64),
             max_request_rate: Some(Rate {
                 count: 2000u64,
                 period: Duration::from_millis(60000),
@@ -37939,7 +37939,7 @@ impl Default for TracerLog {
             path: Default::default(),
             prefix: "stalwart".to_string(),
             rotate: LogRotateFrequency::Daily,
-            ansi: false,
+            ansi: true,
             multiline: false,
             enable: true,
             level: TracingLevel::Info,

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-#![warn(clippy::large_futures)]
+#![deny(clippy::large_futures)]
 
 use crate::auth::{AccessTokenInner, EmailAddress};
 use crate::manager::application::WebApplications;

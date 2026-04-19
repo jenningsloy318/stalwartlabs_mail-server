@@ -97,7 +97,7 @@ impl<T: SessionStream> Session<T> {
                 Command::CheckScript => self.handle_checkscript(request).await,
                 Command::HaveSpace => self.handle_havespace(request).await,
                 Command::Capability => self.handle_capability("").await,
-                Command::Authenticate => self.handle_authenticate(request).await,
+                Command::Authenticate => Box::pin(self.handle_authenticate(request)).await,
                 Command::StartTls => self.handle_start_tls().await,
                 Command::Logout => self.handle_logout().await,
                 Command::Noop => self.handle_noop(request).await,

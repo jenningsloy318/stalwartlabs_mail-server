@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
+#![deny(clippy::large_futures)]
+
 use crate::v016::migrate_v0_16;
 use common::{DATABASE_SCHEMA_VERSION, Server};
 use store::{

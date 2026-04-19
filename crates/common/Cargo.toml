@@ -20,7 +20,7 @@ mail-parser = { version = "0.11", features = ["full_encoding"] }
 mail-builder = { version = "0.4" }
 mail-auth = { version = "0.8" }
 smtp-proto = { version = "0.2", features = ["rkyv"] }
-dns-update = { version = "0.2.0" }
+dns-update = { version = "0.2.1" }
 calcard = { version = "0.3", features = ["rkyv"] }
 ahash = { version = "0.8.2", features = ["serde"] }
 parking_lot = "0.12.1"

@@ -44,7 +44,6 @@ use trc::{DaneEvent, DeliveryEvent, MtaStsEvent, ServerEvent, TlsRptEvent};
 
 impl QueuedMessage {
     pub fn try_deliver(self, server: Server) {
-        #![allow(clippy::large_futures)]
         tokio::spawn(async move {
             // Lock queue event
             let queue_id = self.queue_id;

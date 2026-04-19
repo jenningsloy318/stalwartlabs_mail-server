@@ -26,15 +26,13 @@ impl RegistryStoreInner {
                 .ok()
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .unwrap_or(false),
-            env_recovery_admin: std::env::var("STALWART_ADMIN_ACCOUNT")
+            env_recovery_admin: std::env::var("STALWART_RECOVERY_ADMIN")
                 .ok()
-                .filter(|a| !a.is_empty())
-                .and_then(|a| {
-                    std::env::var("STALWART_ADMIN_PASS")
-                        .ok()
-                        .filter(|p| !p.is_empty())
-                        .map(|p| (a, p))
-                }),
+                .and_then(|v| {
+                    v.split_once(':')
+                        .map(|(a, p)| (a.trim().to_string(), p.trim().to_string()))
+                })
+                .filter(|(a, p)| !a.is_empty() && !p.is_empty()),
             env_cluster_role: std::env::var("STALWART_ROLE")
                 .ok()
                 .filter(|r| !r.is_empty()),

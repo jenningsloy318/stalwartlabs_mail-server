@@ -71,10 +71,10 @@ impl ManagementApi for Server {
             "auth" if is_post => {
                 self.is_http_anonymous_request_allowed(session.remote_ip)
                     .await?;
-                self.handle_login_request(
+                Box::pin(self.handle_login_request(
                     session,
                     body.ok_or_else(|| trc::LimitEvent::SizeRequest.into_err())?,
-                )
+                ))
                 .await
             }
             "discover" => {

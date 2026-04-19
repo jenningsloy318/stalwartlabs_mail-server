@@ -163,8 +163,34 @@ impl AnalyzeReport for Server {
                         Cow::Owned(buf)
                     }
                     Compression::Zip => {
-                        let mut archive = match zip::ZipArchive::new(Cursor::new(report.data)) {
-                            Ok(archive) => archive,
+                        let data = report.data.to_vec();
+                        let result = tokio::task::spawn_blocking(
+                            move || -> Result<Vec<u8>, std::io::Error> {
+                                let mut archive = zip::ZipArchive::new(Cursor::new(data))
+                                    .map_err(std::io::Error::other)?;
+                                let mut buf = Vec::new();
+                                if !archive.is_empty() {
+                                    let mut file =
+                                        archive.by_index(0).map_err(std::io::Error::other)?;
+                                    buf.reserve(file.compressed_size() as usize);
+                                    file.read_to_end(&mut buf)?;
+                                }
+                                Ok(buf)
+                            },
+                        )
+                        .await;
+                        match result {
+                            Ok(Ok(buf)) => Cow::Owned(buf),
+                            Ok(Err(err)) => {
+                                trc::event!(
+                                    IncomingReport(IncomingReportEvent::DecompressError),
+                                    SpanId = session_id,
+                                    From = from.to_string(),
+                                    Reason = err.to_string(),
+                                    CausedBy = trc::location!()
+                                );
+                                continue;
+                            }
                             Err(err) => {
                                 trc::event!(
                                     IncomingReport(IncomingReportEvent::DecompressError),
@@ -173,38 +199,9 @@ impl AnalyzeReport for Server {
                                     Reason = err.to_string(),
                                     CausedBy = trc::location!()
                                 );
-
                                 continue;
                             }
-                        };
-                        let mut buf = Vec::with_capacity(0);
-                        for i in 0..archive.len() {
-                            match archive.by_index(i) {
-                                Ok(mut file) => {
-                                    buf = Vec::with_capacity(file.compressed_size() as usize);
-                                    if let Err(err) = file.read_to_end(&mut buf) {
-                                        trc::event!(
-                                            IncomingReport(IncomingReportEvent::DecompressError),
-                                            SpanId = session_id,
-                                            From = from.to_string(),
-                                            Reason = err.to_string(),
-                                            CausedBy = trc::location!()
-                                        );
-                                    }
-                                    break;
-                                }
-                                Err(err) => {
-                                    trc::event!(
-                                        IncomingReport(IncomingReportEvent::DecompressError),
-                                        SpanId = session_id,
-                                        From = from.to_string(),
-                                        Reason = err.to_string(),
-                                        CausedBy = trc::location!()
-                                    );
-                                }
-                            }
                         }
-                        Cow::Owned(buf)
                     }
                 };
 

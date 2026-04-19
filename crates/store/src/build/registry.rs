@@ -15,6 +15,7 @@ use crate::{
         now,
     },
 };
+use rand::{Rng, distr::Alphanumeric, rng};
 use registry::{
     schema::{enums::ClusterNodeStatus, structs::ClusterNode},
     types::datetime::UTCDateTime,
@@ -36,6 +37,33 @@ impl RegistryStore {
             RegistryInit::Err(err) => return Err(err),
             RegistryInit::Bootstrap => {
                 inner.env_recovery_mode = true;
+
+                if inner.env_recovery_admin.is_none() {
+                    let password = rng()
+                        .sample_iter(Alphanumeric)
+                        .take(16)
+                        .map(char::from)
+                        .collect::<String>();
+                    eprintln!();
+                    eprintln!("════════════════════════════════════════════════════════════");
+                    eprintln!("🔑 Stalwart bootstrap mode - temporary administrator account");
+                    eprintln!();
+                    eprintln!("   username: admin");
+                    eprintln!("   password: {password}");
+                    eprintln!();
+                    eprintln!("Use these credentials to complete the initial setup at the");
+                    eprintln!("/admin web UI. Once setup is done, Stalwart will provision a");
+                    eprintln!("permanent administrator and this temporary account will no");
+                    eprintln!("longer apply.");
+                    eprintln!();
+                    eprintln!("This password is shown only once. To pin a credential");
+                    eprintln!("instead, set STALWART_RECOVERY_ADMIN=admin:<password> in the");
+                    eprintln!("env file.");
+                    eprintln!("════════════════════════════════════════════════════════════");
+                    eprintln!();
+                    inner.env_recovery_admin = Some(("admin".to_string(), password));
+                }
+
                 EphemeralStore::open()
             }
         };
