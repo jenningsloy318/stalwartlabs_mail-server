@@ -42,7 +42,7 @@ impl PrincipalQuery for Server {
         access_token: &AccessToken,
     ) -> trc::Result<QueryResponse> {
         if !self.core.groupware.allow_directory_query
-            && !access_token.has_permission(Permission::SysAccountQuery)
+            && !access_token.has_permission(Permission::JmapPrincipalQuery)
         {
             return Err(trc::JmapEvent::Forbidden
                 .into_err()

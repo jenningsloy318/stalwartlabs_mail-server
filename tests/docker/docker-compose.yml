@@ -50,8 +50,7 @@ services:
   # FoundationDB
   # ---------------------------------------------------------------------------
   foundationdb:
-    image: foundationdb/foundationdb:7.3.43
-    platform: linux/amd64
+    image: foundationdb/foundationdb:7.4.6
     ports:
       - "127.0.0.1:4500:4500"
     environment:
@@ -63,8 +62,7 @@ services:
       - /var/fdb/logs
 
   fdb-init:
-    image: foundationdb/foundationdb:7.3.43
-    platform: linux/amd64
+    image: foundationdb/foundationdb:7.4.6
     depends_on:
       - foundationdb
     volumes:

@@ -14,6 +14,7 @@ use registry::schema::structs::{Account, AccountSettings, Directory};
 use types::id::Id;
 
 pub async fn test() {
+    println!("Running directory integration tests...");
     let test = TestServerBuilder::new("directory_integration_test")
         .await
         .with_default_listeners()

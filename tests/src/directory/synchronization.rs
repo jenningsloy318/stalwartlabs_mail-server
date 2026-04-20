@@ -12,6 +12,7 @@ use registry::schema::{
 use types::id::Id;
 
 pub async fn test() {
+    println!("Running directory synchronization tests...");
     let test = TestServerBuilder::new("directory_synchronization_test")
         .await
         .with_default_listeners()

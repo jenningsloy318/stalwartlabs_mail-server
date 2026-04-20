@@ -49,6 +49,7 @@ Key features:
   - SMTP:
     * SMTP server with built-in [DMARC](https://datatracker.ietf.org/doc/html/rfc7489), [DKIM](https://datatracker.ietf.org/doc/html/rfc6376), [SPF](https://datatracker.ietf.org/doc/html/rfc7208) and [ARC](https://datatracker.ietf.org/doc/html/rfc8617) support for message authentication.
     * Strong transport security through [DANE](https://datatracker.ietf.org/doc/html/rfc6698), [MTA-STS](https://datatracker.ietf.org/doc/html/rfc8461) and [SMTP TLS](https://datatracker.ietf.org/doc/html/rfc8460) reporting.
+    * Automated DKIM key rotation and management.
     * Inbound throttling and filtering with granular configuration rules, sieve scripting, MTA hooks and milter integration.
     * Distributed virtual queues with delayed delivery, priority delivery, quotas, routing rules and throttling support.
     * Envelope rewriting and message modification.
@@ -81,12 +82,13 @@ Key features:
   - Full-text search available in 17 languages using the built-in search engine or via **Meilisearch**, **ElasticSearch**, **OpenSearch**, **PostgreSQL** or **mySQL** backends.
   - Sieve scripting language with support for all [registered extensions](https://www.iana.org/assignments/sieve-extensions/sieve-extensions.xhtml).
   - Email aliases, mailing lists, subaddressing and catch-all addresses support.
+  - Automated DNS management.
   - Automatic account configuration and discovery with [autoconfig](https://www.ietf.org/id/draft-bucksch-autoconfig-02.html) and [autodiscover](https://learn.microsoft.com/en-us/exchange/architecture/client-access/autodiscover?view=exchserver-2019). 
   - Multi-tenancy support with domain and tenant isolation.
   - Disk quotas per user and tenant.
 - **Secure and robust**:
   - Encryption at rest with **S/MIME** or **OpenPGP**.
-  - Automatic TLS certificate provisioning with [ACME](https://datatracker.ietf.org/doc/html/rfc8555) using `TLS-ALPN-01`, `DNS-01` or `HTTP-01` challenges.
+  - Automatic TLS certificate provisioning with [ACME](https://datatracker.ietf.org/doc/html/rfc8555) using `TLS-ALPN-01`, `DNS-01`, `DNS-PERSIST-01` or `HTTP-01` challenges.
   - Automated blocking of IP addresses that attack, abuse or scan the server for exploits.
   - Rate limiting.
   - Security audited (read the [report](https://stalw.art/blog/security-audit)).
@@ -122,7 +124,7 @@ Key features:
 
 ## Screenshots
 
-<img src="./img/screencast-setup.gif">
+<img src="./img/demo.gif">
 
 ## Presentation
 

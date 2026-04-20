@@ -168,7 +168,23 @@ class StalwartClient:
     def list_principal_names(self) -> list[tuple[str, str]]:
         out: list[tuple[str, str]] = []
         seen: set[tuple[str, str]] = set()
-        types_param = ",".join(ALL_PRINCIPAL_TYPES)
+        for principal_type in ALL_PRINCIPAL_TYPES:
+            try:
+                self._list_principals_of_type(principal_type, out, seen)
+            except ApiError as exc:
+                print(
+                    f"  WARN skipping principal type {principal_type!r}: {exc}",
+                    file=sys.stderr,
+                )
+        return out
+
+    def _list_principals_of_type(
+        self,
+        principal_type: str,
+        out: list[tuple[str, str]],
+        seen: set[tuple[str, str]],
+    ) -> None:
+        before = len(out)
         page = 1
         while True:
             data = self.get(
@@ -176,13 +192,13 @@ class StalwartClient:
                 params={
                     "page": str(page),
                     "limit": str(PAGE_SIZE),
-                    "types": types_param,
+                    "types": principal_type,
                 },
             )
             items = data.get("items", []) or []
             total = int(data.get("total", 0) or 0)
             for p in items:
-                typ = p.get("type") or ""
+                typ = p.get("type") or principal_type
                 name = _principal_name(p)
                 if not name:
                     continue
@@ -193,10 +209,9 @@ class StalwartClient:
                 out.append(key)
             if not items:
                 break
-            if len(out) >= total:
+            if (len(out) - before) >= total:
                 break
             page += 1
-        return out
 
     def get_principal(self, name: str) -> dict[str, Any]:
         quoted = urllib.parse.quote(name, safe="")

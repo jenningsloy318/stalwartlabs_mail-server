@@ -163,6 +163,7 @@ impl BootManager {
                 if bootstrap.registry.is_bootstrap_mode() {
                     trc::event!(
                         Server(trc::ServerEvent::BootstrapMode),
+                        Hostname = bootstrap.registry.local_hostname().to_string(),
                         Details =
                             "No configuration file was found. Port 8080 is open for initial setup.",
                         Version = env!("CARGO_PKG_VERSION"),

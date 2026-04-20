@@ -9,6 +9,7 @@ use registry::schema::structs::{self, SqlAuthStore};
 use store::{Store, backend::sqlite::SqliteStore};
 
 pub async fn test() {
+    println!("Running SQL directory tests...");
     let sql_store = Store::SQLite(SqliteStore::open_memory().unwrap().into());
 
     // Create test directory

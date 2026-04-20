@@ -204,6 +204,9 @@ write_env_file() {
 # Environment variables for the Stalwart service.
 # Uncomment and edit an entry to override its default.
 
+# Override the hostname used in HTTP responses
+#STALWART_HOSTNAME=mail.example.com
+
 # Enable bootstrap / recovery mode on startup. Accepted: 1, true. Default: false.
 #STALWART_RECOVERY_MODE=true
 

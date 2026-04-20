@@ -31,6 +31,7 @@ pub struct Scripting {
     pub untrusted_compiler: Compiler,
     pub untrusted_runtime: Runtime,
     pub trusted_runtime: Runtime,
+    pub trusted_compiler: Compiler,
     pub from_addr: IfBlock,
     pub from_name: IfBlock,
     pub return_path: IfBlock,
@@ -176,6 +177,7 @@ impl Scripting {
             untrusted_compiler,
             untrusted_runtime,
             trusted_runtime,
+            trusted_compiler,
             untrusted_scripts,
             trusted_scripts,
             from_addr: bp.compile_expr(
@@ -210,6 +212,7 @@ impl Clone for Scripting {
             sign: self.sign.clone(),
             trusted_scripts: self.trusted_scripts.clone(),
             untrusted_scripts: self.untrusted_scripts.clone(),
+            trusted_compiler: self.trusted_compiler.clone(),
         }
     }
 }

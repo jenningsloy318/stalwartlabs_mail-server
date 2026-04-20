@@ -11,6 +11,7 @@ use registry::{
 };
 
 pub async fn test() {
+    println!("Running LDAP directory tests...");
     let mut config = ldap_test_directory();
 
     // Test bind authentication
@@ -156,6 +157,7 @@ pub fn ldap_test_directory() -> structs::LdapDirectory {
         .into(),
         group_class: "groupOfNames".into(),
         bind_authentication: true,
+        description: "Test LDAP directory".into(),
         ..Default::default()
     }
 }

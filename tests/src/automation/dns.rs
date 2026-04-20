@@ -58,7 +58,7 @@ _995._tcp.pop3.example.org. IN TLSA 2 1 1
 _dmarc.example.org. IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@example.org"
 _mta-sts.example.org. IN TXT "v=STSv1; id=12942536112359691423"
 _smtp._tls.example.org. IN TXT "v=TLSRPTv1; rua=mailto:postmaster@example.org"
-_ua-auto-config.example.org. IN TXT "v=UAAC1; a=sha256; d=9ZXAG5NGLnhdx4IQKuA2lLGrVXD3N/UKlo059TEi9zY="
+_ua-auto-config.example.org. IN TXT "v=UAAC1; a=sha256; d=JJ/h5yIbCwPiASVbENZzCyyzeV/AiFCoBbiH2iTISWs="
 _validation-persist.example.org. IN TXT "pebble.letsencrypt.org; accounturi=REDACTED"
 dummy-v1-ed25519._domainkey.example.org. IN TXT "v=DKIM1; k=ed25519; h=sha256; p=REDACTED"
 dummy-v1-rsa._domainkey.example.org. IN TXT "v=DKIM1; k=rsa; h=sha256; p=REDACTED"

@@ -120,7 +120,18 @@ pub(crate) async fn account_set(
                         set.response.not_updated.append(id, SetError::not_found());
                     }
 
-                    let mut account_pass = AccountPassword::default();
+                    let mut account_pass = AccountPassword {
+                        secret: None,
+                        current_secret: None,
+                        otp_auth: OtpAuth {
+                            otp_code: None,
+                            otp_url: if old_credential.otp_auth.is_some() {
+                                Some(MASKED_PASSWORD.to_string())
+                            } else {
+                                None
+                            },
+                        },
+                    };
 
                     for (key, value) in value.into_expanded_object() {
                         let ptr = match key {
@@ -149,23 +160,26 @@ pub(crate) async fn account_set(
                         }
                     }
 
-                    let is_empty_secret =
-                        account_pass.secret.is_empty() || account_pass.secret == MASKED_PASSWORD;
-                    let is_empty_otp = account_pass
-                        .otp_auth
-                        .otp_url
+                    let is_empty_secret = account_pass
+                        .secret
                         .as_ref()
-                        .is_none_or(|url| url != MASKED_PASSWORD);
+                        .is_none_or(|secret| secret == MASKED_PASSWORD);
+                    let is_empty_otp = account_pass.otp_auth.otp_url.as_deref()
+                        == Some(MASKED_PASSWORD)
+                        || (account_pass.otp_auth.otp_url.is_none()
+                            && old_credential.otp_auth.is_none());
                     if !is_empty_secret || !is_empty_otp {
-                        if is_empty_secret {
-                            account_pass.secret = old_credential.secret.clone();
-                        }
+                        let user_provided_secret = if !is_empty_secret {
+                            account_pass.secret.as_ref().unwrap()
+                        } else {
+                            old_credential.secret.as_str()
+                        };
                         if is_empty_otp {
                             account_pass.otp_auth.otp_url = old_credential.otp_auth.clone();
                         }
 
                         // Password changes are not supported when using external directories
-                        if (account_pass.secret != old_credential.secret
+                        if (user_provided_secret != old_credential.secret
                             || account_pass.otp_auth.otp_url != old_credential.otp_auth)
                             && set
                                 .server
@@ -183,7 +197,7 @@ pub(crate) async fn account_set(
                             continue 'outer;
                         }
 
-                        if account_pass.secret != old_credential.secret
+                        if user_provided_secret != old_credential.secret
                             || account_pass.otp_auth.otp_url != old_credential.otp_auth
                         {
                             if old_credential.secret.is_empty() {
@@ -249,9 +263,9 @@ pub(crate) async fn account_set(
                                     }
                                 }
 
-                                if account_pass.secret != old_credential.secret {
+                                if user_provided_secret != old_credential.secret {
                                     if let Err(err) =
-                                        set.server.is_secure_password(&account_pass.secret, &[])
+                                        set.server.is_secure_password(user_provided_secret, &[])
                                     {
                                         set.response.not_updated.append(
                                             id,
@@ -278,7 +292,7 @@ pub(crate) async fn account_set(
 
                                     old_credential.secret = hash_secret(
                                         set.server.core.network.security.password_hash_algorithm,
-                                        account_pass.secret.into_bytes(),
+                                        user_provided_secret.as_bytes().to_vec(),
                                     )
                                     .await
                                     .caused_by(trc::location!())?;
@@ -722,7 +736,7 @@ pub(crate) async fn account_get(
                                     None
                                 },
                             },
-                            secret: MASKED_PASSWORD.into(),
+                            secret: MASKED_PASSWORD.to_string().into(),
                         }
                         .into_value(),
                     );

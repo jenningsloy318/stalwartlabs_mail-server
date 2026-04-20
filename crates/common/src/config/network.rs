@@ -196,12 +196,14 @@ impl Network {
             },
         };
 
-        let mut http_host = system.default_hostname.clone();
+        let default_hostname = if !system.default_hostname.is_empty() {
+            system.default_hostname.as_str()
+        } else {
+            bp.registry.local_hostname()
+        };
+        let mut http_host = default_hostname.to_string();
         for (service, details) in &system.services {
-            let hostname = details
-                .hostname
-                .as_deref()
-                .unwrap_or(&system.default_hostname);
+            let hostname = details.hostname.as_deref().unwrap_or(default_hostname);
 
             match service {
                 ServiceProtocol::Jmap => {
@@ -319,7 +321,7 @@ impl Network {
             .unwrap();
         let mut network = Network {
             node_id: bp.node_id() as u64,
-            server_name: system.default_hostname,
+            server_name: default_hostname.to_string(),
             security: Security::parse(bp).await,
             contact_form: ContactForm::parse(bp).await,
             asn_geo_lookup: AsnGeoLookupConfig::parse(bp).await.unwrap_or_default(),
@@ -395,7 +397,7 @@ impl Http {
         let use_permissive_cors = true;
 
         #[cfg(not(feature = "dev_mode"))]
-        let use_permissive_cors = http.use_permissive_cors;
+        let use_permissive_cors = http.use_permissive_cors || bp.registry.is_recovery_mode();
 
         if use_permissive_cors {
             http_headers.push((
@@ -425,8 +427,16 @@ impl Http {
         }
 
         Http {
-            url_https: format!("https://{}", server_name),
-            url_http: format!("http://{}", server_name),
+            url_https: if !bp.registry.is_bootstrap_mode() {
+                format!("https://{server_name}")
+            } else {
+                String::new()
+            },
+            url_http: if !bp.registry.is_bootstrap_mode() {
+                format!("http://{server_name}")
+            } else {
+                String::new()
+            },
             allowed_endpoint: bp
                 .compile_expr(ObjectType::Http.singleton(), &http.ctx_allowed_endpoints()),
             rate_authenticated: http.rate_limit_authenticated,

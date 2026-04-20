@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.16.0] - 2026-XX-XX
+## [0.16.0] - 2026-04-20
 
 This version includes **multiple breaking changes**. If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
@@ -93,6 +93,7 @@ This version includes **multiple breaking changes**. If you are upgrading from v
   - Use RFC 2616 instead of RFC 1123 for date formatting
   - Fix ACL container/item mismatch in reports.
   - CalDAV: Allow organized properties to be present in `PUT` requests if they are equal to the existing ones.
+  - CalDAV: Enforce cumulative iCalendar instances cap in CalDAV free-busy REPORT handler
 - Configuration: Prefix parsing issues (#2495)
 - OIDC: JWKS Exposes Symmetric Signing Key
 - SQLite: Fix thread pool exhaustion.

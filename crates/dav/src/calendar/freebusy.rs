@@ -160,6 +160,8 @@ impl CalendarFreebusyRequestHandler for Server {
 
             let mut fb_entries: AHashMap<ICalendarFreeBusyType, Vec<(i64, i64)>> =
                 AHashMap::with_capacity(document_ids.len());
+            let max_instances = self.core.groupware.max_ical_instances;
+            let mut total_instances: usize = 0;
 
             for document_id in document_ids {
                 let Some(archive) = self
@@ -210,6 +212,11 @@ impl CalendarFreebusyRequestHandler for Server {
 
                 if events.is_empty() {
                     continue;
+                }
+
+                total_instances = total_instances.saturating_add(events.len());
+                if total_instances > max_instances {
+                    return Err(DavError::Code(StatusCode::PAYLOAD_TOO_LARGE));
                 }
 
                 for (component_id, component) in components {

@@ -397,6 +397,15 @@ impl RegistryQueryFilters for QueryRequest<Registry> {
         max_results: usize,
         external_filter: Option<Property>,
     ) -> trc::Result<RegistryQueryParameters> {
+        #[cfg(feature = "test_mode")]
+        let comparator = self
+            .sort
+            .take()
+            .unwrap_or_default()
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| Comparator::ascending(RegistryComparator::Property(Property::Id)));
+        #[cfg(not(feature = "test_mode"))]
         let comparator = self
             .sort
             .take()

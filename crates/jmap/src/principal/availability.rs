@@ -62,7 +62,7 @@ impl PrincipalGetAvailability for Server {
         access_token: &AccessToken,
     ) -> trc::Result<GetAvailabilityResponse> {
         if !self.core.groupware.allow_directory_query
-            && !access_token.has_permission(Permission::SysAccountQuery)
+            && !access_token.has_permission(Permission::JmapPrincipalGetAvailability)
         {
             return Err(trc::JmapEvent::Forbidden
                 .into_err()

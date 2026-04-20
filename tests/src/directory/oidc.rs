@@ -12,6 +12,7 @@ use directory::{Account, Credentials, Directory, backend::oidc::OpenIdDirectory}
 use registry::{schema::structs, types::map::Map};
 
 pub async fn test() {
+    println!("Running OIDC directory tests...");
     let config = structs::OidcDirectory {
         description: "Test OIDC directory".to_string(),
         issuer_url: "http://localhost:9080/realms/stalwart".to_string(),

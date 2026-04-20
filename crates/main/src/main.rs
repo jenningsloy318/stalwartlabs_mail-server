@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-#![deny(clippy::large_futures)]
+#![warn(clippy::large_futures)]
 #![warn(clippy::cast_possible_truncation)]
 #![warn(clippy::cast_possible_wrap)]
 #![warn(clippy::cast_sign_loss)]

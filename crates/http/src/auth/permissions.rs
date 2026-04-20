@@ -87,6 +87,18 @@ impl AccountApiHandler for Server {
                 permissions.clear(p.to_id() as usize);
             }
 
+            if !self.core.groupware.allow_directory_query {
+                for p in [
+                    Permission::JmapPrincipalQuery,
+                    Permission::JmapPrincipalQueryChanges,
+                    Permission::JmapPrincipalGet,
+                    Permission::JmapPrincipalGetAvailability,
+                    Permission::JmapPrincipalChanges,
+                ] {
+                    permissions.clear(p.to_id() as usize);
+                }
+            }
+
             if is_external_directory || is_recovery_admin {
                 permissions.clear(Permission::SysAccountPasswordGet.to_id() as usize);
                 permissions.clear(Permission::SysAccountPasswordUpdate.to_id() as usize);

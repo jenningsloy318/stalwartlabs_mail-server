@@ -179,7 +179,7 @@ impl DavRequestDispatcher for Server {
                 Report::AclPrincipalPropSet(report) => {
                     // Validate permissions
                     if !self.core.groupware.allow_directory_query
-                        && !access_token.has_permission(Permission::SysAccountQuery)
+                        && !access_token.has_permission(Permission::DavPrincipalAcl)
                     {
                         return Err(DavError::Condition(
                             DavErrorCondition::new(
@@ -198,7 +198,7 @@ impl DavRequestDispatcher for Server {
                 Report::PrincipalMatch(report) => {
                     // Validate permissions
                     if !self.core.groupware.allow_directory_query
-                        && !access_token.has_permission(Permission::SysAccountQuery)
+                        && !access_token.has_permission(Permission::DavPrincipalMatch)
                     {
                         return Err(DavError::Condition(
                             DavErrorCondition::new(
@@ -218,7 +218,7 @@ impl DavRequestDispatcher for Server {
                     if resource == DavResourceName::Principal {
                         // Validate permissions
                         if !self.core.groupware.allow_directory_query
-                            && !access_token.has_permission(Permission::SysAccountQuery)
+                            && !access_token.has_permission(Permission::DavPrincipalSearch)
                         {
                             return Err(DavError::Condition(
                                 DavErrorCondition::new(

@@ -20,7 +20,7 @@ pub(crate) async fn validate_sieve_script(
             if let Err(err) = server
                 .core
                 .sieve
-                .untrusted_compiler
+                .trusted_compiler
                 .compile(script.as_bytes())
             {
                 return Ok(Err(SetError::invalid_properties()

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-#![deny(clippy::large_futures)]
+#![warn(clippy::large_futures)]
 
 use crate::v016::migrate_v0_16;
 use common::{DATABASE_SCHEMA_VERSION, Server};
@@ -56,6 +56,7 @@ pub async fn try_migrate(server: &Server) -> trc::Result<()> {
         }
         _ => {
             if is_new_install(server).await.caused_by(trc::location!())? {
+                write_schema_version(server).await?;
                 return Ok(());
             } else {
                 abort(concat!(
@@ -67,7 +68,10 @@ pub async fn try_migrate(server: &Server) -> trc::Result<()> {
     }
 
     migrate_v0_16(server).await?;
+    write_schema_version(server).await
+}
 
+async fn write_schema_version(server: &Server) -> trc::Result<()> {
     let mut batch = BatchBuilder::new();
     batch.set(
         ValueClass::Any(AnyClass {

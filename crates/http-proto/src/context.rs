@@ -33,10 +33,14 @@ impl<'x> HttpContext<'x> {
         } else {
             #[cfg(not(any(feature = "dev_mode", feature = "test_mode")))]
             {
-                format!(
-                    "{}:{}",
-                    server.core.network.http.url_http, self.session.local_port
-                )
+                if !server.registry().is_bootstrap_mode() {
+                    format!(
+                        "{}:{}",
+                        server.core.network.http.url_http, self.session.local_port
+                    )
+                } else {
+                    server.core.network.http.url_http.clone()
+                }
             }
 
             #[cfg(any(feature = "dev_mode", feature = "test_mode"))]
