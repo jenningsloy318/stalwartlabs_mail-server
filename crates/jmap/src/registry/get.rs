@@ -357,6 +357,8 @@ impl RegistryGet for Server {
             | ObjectType::AccountPassword
             | ObjectType::AppPassword => account_get(get).await.map(|get| get.into_response()),
             ObjectType::Action => Ok(get.not_found_any().into_response()),
+            #[cfg(not(feature = "enterprise"))]
+            _ => Ok(get.not_found_any().into_response()),
         }
     }
 }

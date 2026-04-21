@@ -64,7 +64,9 @@ impl TokenHandler for Server {
 
         let mut response = TokenResponse::error(ErrorType::InvalidGrant);
 
-        let issuer = HttpContext::new(&session, req).resolve_response_url(self);
+        let issuer = HttpContext::new(&session, req)
+            .resolve_response_url(self)
+            .to_string();
 
         if grant_type.eq_ignore_ascii_case("authorization_code") {
             response = if let (Some(code), Some(client_id), Some(redirect_uri)) = (

@@ -19,34 +19,11 @@ impl<'x> HttpContext<'x> {
     }
 
     #[allow(unused_variables)]
-    pub fn resolve_response_url(&self, server: &Server) -> String {
+    pub fn resolve_response_url<'y>(&self, server: &'y Server) -> &'y str {
         if self.session.is_tls {
-            #[cfg(not(any(feature = "dev_mode", feature = "test_mode")))]
-            {
-                server.core.network.http.url_https.clone()
-            }
-
-            #[cfg(any(feature = "dev_mode", feature = "test_mode"))]
-            {
-                format!("https://127.0.0.1:{}", self.session.local_port)
-            }
+            &server.core.network.http.url_https
         } else {
-            #[cfg(not(any(feature = "dev_mode", feature = "test_mode")))]
-            {
-                if !server.registry().is_bootstrap_mode() {
-                    format!(
-                        "{}:{}",
-                        server.core.network.http.url_http, self.session.local_port
-                    )
-                } else {
-                    server.core.network.http.url_http.clone()
-                }
-            }
-
-            #[cfg(any(feature = "dev_mode", feature = "test_mode"))]
-            {
-                format!("http://127.0.0.1:{}", self.session.local_port)
-            }
+            &server.core.network.http.url_http
         }
     }
 

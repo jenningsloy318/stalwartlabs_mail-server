@@ -1463,11 +1463,17 @@ class Converter:
             blob_b64 = sub.get("cert", "").strip()
             if not blob_b64:
                 continue
-            try:
-                blob = base64.b64decode(blob_b64).decode("latin-1")
-            except Exception as exc:  
+            padded = blob_b64 + "=" * (-len(blob_b64) % 4)
+            blob = None
+            for decoder in (base64.b64decode, base64.urlsafe_b64decode):
+                try:
+                    blob = decoder(padded).decode("latin-1")
+                    break
+                except Exception as exc:
+                    last_err = exc
+            if blob is None:
                 print(
-                    f"warning: skipping acme.{sid}: base64 decode failed: {exc}",
+                    f"warning: skipping acme.{sid}: base64 decode failed: {last_err}",
                     file=sys.stderr,
                 )
                 continue

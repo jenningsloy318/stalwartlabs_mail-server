@@ -366,6 +366,10 @@ impl Network {
 }
 
 impl Http {
+    #[cfg_attr(
+        any(feature = "dev_mode", feature = "test_mode"),
+        allow(unused_variables)
+    )]
     pub async fn parse(bp: &mut Bootstrap, server_name: &str) -> Self {
         let http = bp.setting_infallible::<structs::Http>().await;
 
@@ -426,13 +430,16 @@ impl Http {
             ));
         }
 
+        #[cfg(any(feature = "dev_mode", feature = "test_mode"))]
+        let server_name = "127.0.0.1:8080";
+
         Http {
-            url_https: if !bp.registry.is_bootstrap_mode() {
+            url_https: if !bp.registry.is_recovery_mode() {
                 format!("https://{server_name}")
             } else {
                 String::new()
             },
-            url_http: if !bp.registry.is_bootstrap_mode() {
+            url_http: if !bp.registry.is_recovery_mode() {
                 format!("http://{server_name}")
             } else {
                 String::new()

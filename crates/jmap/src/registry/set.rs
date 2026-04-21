@@ -708,6 +708,13 @@ impl RegistrySet for Server {
                 set.fail_all_destroy("Telemetry objects cannot be deleted");
                 Ok(set.into_response())
             }
+            #[cfg(not(feature = "enterprise"))]
+            _ => {
+                set.fail_all_create("Enterprise objects cannot be created");
+                set.fail_all_update("Enterprise objects cannot be modified");
+                set.fail_all_destroy("Enterprise objects cannot be deleted");
+                Ok(set.into_response())
+            }
         }
     }
 }

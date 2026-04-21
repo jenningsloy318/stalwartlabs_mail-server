@@ -47,12 +47,11 @@ impl RegistryStoreInner {
                     let host = gethostname::gethostname();
                     let host = host.to_string_lossy();
                     if host.parse::<IpAddr>().is_err() {
-                        host.into_owned()
+                        host.to_lowercase()
                     } else {
                         "localhost".to_string()
                     }
-                })
-                .to_lowercase(),
+                }),
         }
     }
 
