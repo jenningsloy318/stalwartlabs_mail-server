@@ -81,7 +81,7 @@ impl ManagementApi for Server {
                 if let Some(email) = path.get(1).copied() {
                     self.is_http_anonymous_request_allowed(session.remote_ip)
                         .await?;
-                    self.handle_discover_request(req, session, decode_path_element(email).as_ref())
+                    self.handle_discover_request(decode_path_element(email).as_ref())
                         .await
                 } else {
                     Err(trc::ResourceEvent::NotFound.into_err())

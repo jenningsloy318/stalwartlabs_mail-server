@@ -217,6 +217,7 @@ pub struct RegistryStoreInner {
     pub(crate) env_cluster_role: Option<String>,
     pub(crate) env_push_shard_id: u32,
     pub(crate) env_hostname: String,
+    pub(crate) env_https_port: Option<u16>,
     pub(crate) id_generator: SnowflakeIdGenerator,
 }
 

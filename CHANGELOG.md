@@ -11,9 +11,13 @@ This version includes **multiple breaking changes**. If you are upgrading from v
 ## Changed
 
 ## Fixed
-- Do not include port number when constructing HTTP base URLs.
+- Reverse proxy issues.
 - OSS builds.
-- Cloudflare `CAA` record updates.
+- DNS Updater:
+  - RFC2136: TSIG secret not base64 decoded.
+  - Cloudflare: 
+    - Fix `CAA` record updates.
+    - Check zone subdomains when finding zones
 
 
 ## [0.16.0] - 2026-04-20

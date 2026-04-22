@@ -59,7 +59,6 @@ pub struct Http {
     pub rate_authenticated: Option<Rate>,
     pub rate_anonymous: Option<Rate>,
     pub url_https: String,
-    pub url_http: String,
     pub allowed_endpoint: IfBlock,
     pub response_headers: Vec<(hyper::header::HeaderName, hyper::header::HeaderValue)>,
     pub use_forwarded: bool,
@@ -435,12 +434,11 @@ impl Http {
 
         Http {
             url_https: if !bp.registry.is_recovery_mode() {
-                format!("https://{server_name}")
-            } else {
-                String::new()
-            },
-            url_http: if !bp.registry.is_recovery_mode() {
-                format!("http://{server_name}")
+                if let Some(port) = bp.registry.https_port() {
+                    format!("https://{server_name}:{port}")
+                } else {
+                    format!("https://{server_name}")
+                }
             } else {
                 String::new()
             },

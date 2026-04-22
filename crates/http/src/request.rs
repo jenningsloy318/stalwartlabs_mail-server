@@ -197,14 +197,14 @@ impl ParseHttp for Server {
                                 self.authenticate_headers(&req, &session).await?;
 
                             self.handle_session_resource(
-                                ctx.resolve_response_url(self).to_string(),
+                                self.core.network.http.url_https.to_string(),
                                 &access_token,
                             )
                             .await
                             .map(|s| s.into_http_response())
                         } else {
                             Ok(Session::new(
-                                ctx.resolve_response_url(self),
+                                &self.core.network.http.url_https,
                                 &self.core.jmap.capabilities,
                             )
                             .into_http_response())
@@ -271,14 +271,14 @@ impl ParseHttp for Server {
                     self.is_http_anonymous_request_allowed(session.remote_ip)
                         .await?;
 
-                    return self.handle_oauth_metadata(req, &session).await;
+                    return self.handle_oauth_metadata().await;
                 }
                 ("openid-configuration", &Method::GET) => {
                     // Limit anonymous requests
                     self.is_http_anonymous_request_allowed(session.remote_ip)
                         .await?;
 
-                    return self.handle_oidc_metadata(&req, &session).await;
+                    return self.handle_oidc_metadata().await;
                 }
                 ("acme-challenge", &Method::GET) if self.has_acme_http_providers() => {
                     if let Some(token) = path.next() {

@@ -52,6 +52,9 @@ impl RegistryStoreInner {
                         "localhost".to_string()
                     }
                 }),
+            env_https_port: std::env::var("STALWART_HTTPS_PORT")
+                .ok()
+                .and_then(|p| p.parse::<u16>().ok()),
         }
     }
 

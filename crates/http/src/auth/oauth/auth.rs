@@ -49,8 +49,6 @@ pub struct OAuthMetadata {
 pub trait OAuthApiHandler: Sync + Send {
     fn handle_discover_request(
         &self,
-        req: &HttpRequest,
-        session: &HttpSessionData,
         account_name: &str,
     ) -> impl Future<Output = trc::Result<HttpResponse>> + Send;
 
@@ -66,11 +64,7 @@ pub trait OAuthApiHandler: Sync + Send {
         session: &HttpSessionData,
     ) -> impl Future<Output = trc::Result<HttpResponse>> + Send;
 
-    fn handle_oauth_metadata(
-        &self,
-        req: HttpRequest,
-        session: &HttpSessionData,
-    ) -> impl Future<Output = trc::Result<HttpResponse>> + Send;
+    fn handle_oauth_metadata(&self) -> impl Future<Output = trc::Result<HttpResponse>> + Send;
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -120,12 +114,7 @@ pub enum LoginResponse {
 }
 
 impl OAuthApiHandler for Server {
-    async fn handle_discover_request(
-        &self,
-        req: &HttpRequest,
-        session: &HttpSessionData,
-        account_name: &str,
-    ) -> trc::Result<HttpResponse> {
+    async fn handle_discover_request(&self, account_name: &str) -> trc::Result<HttpResponse> {
         let account_name = account_name.trim().to_lowercase();
         if let Some(domain_name) = account_name.try_domain_part()
             && let Some(endpoint) = self
@@ -137,7 +126,7 @@ impl OAuthApiHandler for Server {
                 .no_cache()
                 .into_http_response())
         } else {
-            self.handle_oidc_metadata(req, session).await
+            self.handle_oidc_metadata().await
         }
     }
 
@@ -423,7 +412,7 @@ impl OAuthApiHandler for Server {
             .await?;
 
         // Build response
-        let base_url = HttpContext::new(session, req).resolve_response_url(self);
+        let base_url = &self.core.network.http.url_https;
         Ok(JsonResponse::new(DeviceAuthResponse {
             verification_uri: format!("{base_url}/device"),
             verification_uri_complete: format!("{base_url}/device/?code={user_code}"),
@@ -436,12 +425,8 @@ impl OAuthApiHandler for Server {
         .into_http_response())
     }
 
-    async fn handle_oauth_metadata(
-        &self,
-        req: HttpRequest,
-        session: &HttpSessionData,
-    ) -> trc::Result<HttpResponse> {
-        let base_url = HttpContext::new(session, &req).resolve_response_url(self);
+    async fn handle_oauth_metadata(&self) -> trc::Result<HttpResponse> {
+        let base_url = &self.core.network.http.url_https;
 
         Ok(JsonResponse::new(OAuthMetadata {
             authorization_endpoint: format!("{base_url}/login",),

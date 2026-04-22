@@ -5,6 +5,7 @@
  */
 
 use crate::{Core, Server};
+use base64::{Engine, engine::general_purpose};
 use dns_update::{
     Algorithm, DnsRecord, DnsRecordType, TsigAlgorithm,
     dnssec::{
@@ -61,7 +62,9 @@ impl DnsUpdater {
                         )),
                     },
                     server.key_name,
-                    server.key.secret().await?.into_owned().into_bytes(),
+                    general_purpose::STANDARD
+                        .decode(server.key.secret().await?.as_bytes())
+                        .map_err(|err| format!("Failed to base64 decode TSIG key: {err}"))?,
                     match server.tsig_algorithm {
                         enums::TsigAlgorithm::HmacMd5 => TsigAlgorithm::HmacMd5,
                         enums::TsigAlgorithm::Gss => TsigAlgorithm::Gss,

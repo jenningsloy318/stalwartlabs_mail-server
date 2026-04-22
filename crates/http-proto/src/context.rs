@@ -18,15 +18,6 @@ impl<'x> HttpContext<'x> {
         Self { session, req }
     }
 
-    #[allow(unused_variables)]
-    pub fn resolve_response_url<'y>(&self, server: &'y Server) -> &'y str {
-        if self.session.is_tls {
-            &server.core.network.http.url_https
-        } else {
-            &server.core.network.http.url_http
-        }
-    }
-
     pub async fn has_endpoint_access(&self, server: &Server) -> StatusCode {
         server
             .eval_if(
