@@ -479,7 +479,10 @@ impl EmailIngest for Server {
                             if let (HeaderName::Received, HeaderValue::Received(received)) =
                                 (&header.name, &header.value)
                             {
-                                received.date.map(|dt| dt.to_timestamp() as u64)
+                                received
+                                    .date
+                                    .filter(|dt| dt.is_valid())
+                                    .map(|dt| dt.to_timestamp() as u64)
                             } else {
                                 None
                             }

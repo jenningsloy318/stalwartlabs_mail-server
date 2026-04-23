@@ -121,7 +121,7 @@ pub(crate) async fn bootstrap_set(
         // Validate domain name and hostname
         let server_hostname = bootstrap.server_hostname.trim().to_lowercase();
         let domain_name = bootstrap.default_domain.trim().to_lowercase();
-        if psl::domain_str(&server_hostname).is_none() {
+        if !is_valid_domain(&server_hostname) {
             set.response.not_updated.append(
                 id,
                 SetError::invalid_properties()
@@ -130,7 +130,7 @@ pub(crate) async fn bootstrap_set(
             );
             break;
         }
-        if psl::domain_str(&domain_name).is_none() {
+        if !is_valid_domain(&domain_name) {
             set.response.not_updated.append(
                 id,
                 SetError::invalid_properties()
@@ -503,6 +503,15 @@ pub(crate) async fn bootstrap_set(
     }
 
     Ok(set)
+}
+
+fn is_valid_domain(hostname: &str) -> bool {
+    const RESERVED_TLDS: &[&str] = &["test", "localhost", "local"];
+    psl::domain_str(hostname).is_some()
+        || RESERVED_TLDS.contains(&hostname)
+        || hostname
+            .rsplit_once('.')
+            .is_some_and(|(_, tld)| RESERVED_TLDS.contains(&tld))
 }
 
 async fn write_object(registry: &RegistryStore, object: &Object) -> Result<Id, SetError<Property>> {

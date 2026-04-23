@@ -8,14 +8,33 @@ use base64::{Engine, engine::general_purpose};
 use imap_proto::ResponseType;
 use std::time::Duration;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines, ReadHalf, WriteHalf},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf},
     net::TcpStream,
 };
 
 pub struct ImapConnection {
     tag: &'static [u8],
-    reader: Lines<BufReader<ReadHalf<TcpStream>>>,
+    reader: BufReader<ReadHalf<TcpStream>>,
     writer: WriteHalf<TcpStream>,
+    last_raw: Vec<u8>,
+}
+
+async fn read_lossy_line(
+    reader: &mut BufReader<ReadHalf<TcpStream>>,
+) -> std::io::Result<Option<(String, Vec<u8>)>> {
+    let mut buf = Vec::new();
+    let n = reader.read_until(b'\n', &mut buf).await?;
+    if n == 0 {
+        return Ok(None);
+    }
+    let mut trimmed = buf.as_slice();
+    if trimmed.last() == Some(&b'\n') {
+        trimmed = &trimmed[..trimmed.len() - 1];
+    }
+    if trimmed.last() == Some(&b'\r') {
+        trimmed = &trimmed[..trimmed.len() - 1];
+    }
+    Ok(Some((String::from_utf8_lossy(trimmed).into_owned(), buf)))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,9 +54,21 @@ impl ImapConnection {
         let (reader, writer) = tokio::io::split(TcpStream::connect(addr.as_ref()).await.unwrap());
         ImapConnection {
             tag,
-            reader: BufReader::new(reader).lines(),
+            reader: BufReader::new(reader),
             writer,
+            last_raw: Vec::new(),
         }
+    }
+
+    pub fn assert_last_contains_bytes(&self, pattern: &[u8]) -> &Self {
+        if !self.last_raw.windows(pattern.len()).any(|w| w == pattern) {
+            panic!(
+                "Expected byte sequence {:02x?} not found in last response ({} bytes).",
+                pattern,
+                self.last_raw.len()
+            );
+        }
+        self
     }
 
     pub async fn assert_read(&mut self, t: Type, rt: ResponseType) -> Vec<String> {
@@ -63,9 +94,14 @@ impl ImapConnection {
     }
 
     pub async fn assert_disconnect(&mut self) {
-        match tokio::time::timeout(Duration::from_millis(1500), self.reader.next_line()).await {
+        match tokio::time::timeout(
+            Duration::from_millis(1500),
+            read_lossy_line(&mut self.reader),
+        )
+        .await
+        {
             Ok(Ok(None)) => {}
-            Ok(Ok(Some(line))) => {
+            Ok(Ok(Some((line, _)))) => {
                 panic!("Expected connection to be closed, but got {:?}", line);
             }
             Ok(Err(err)) => {
@@ -77,9 +113,16 @@ impl ImapConnection {
 
     pub async fn read(&mut self, t: Type) -> Vec<String> {
         let mut lines = Vec::new();
+        self.last_raw.clear();
         loop {
-            match tokio::time::timeout(Duration::from_millis(1500), self.reader.next_line()).await {
-                Ok(Ok(Some(line))) => {
+            match tokio::time::timeout(
+                Duration::from_millis(1500),
+                read_lossy_line(&mut self.reader),
+            )
+            .await
+            {
+                Ok(Ok(Some((line, raw)))) => {
+                    self.last_raw.extend_from_slice(&raw);
                     let is_done = line.starts_with(match t {
                         Type::Tagged => std::str::from_utf8(self.tag).unwrap(),
                         Type::Untagged | Type::Status => "* ",

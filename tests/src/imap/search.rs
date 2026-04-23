@@ -62,6 +62,17 @@ pub async fn test(imap: &mut ImapConnection, imap_check: &mut ImapConnection, te
         .assert_equals("* SEARCH 10");
 
     imap_check
+        .send(concat!(
+            "UID SEARCH CHARSET UTF-8 TEXT {75+}\r\n",
+            "ℌ𝔢𝔩𝔭 𝔪𝔢 𝔢𝔵𝔭𝔬𝔯𝔱 𝔪𝔶 𝔟𝔬𝔬𝔨"
+        ))
+        .await;
+    imap_check
+        .assert_read(Type::Tagged, ResponseType::Ok)
+        .await
+        .assert_equals("* SEARCH 10");
+
+    imap_check
         .send("UID SEARCH NOT (FROM nathaniel ANSWERED)")
         .await;
     imap_check

@@ -309,6 +309,20 @@ impl<'x> DecodedParts<'x> {
             DecodedPartContent::Binary(binary) => binary.as_ref(),
         })
     }
+
+    #[inline]
+    pub fn transfer_decoded_contents(
+        &self,
+        message_id: usize,
+        part: &ArchivedMessageMetadataPart,
+    ) -> Option<Cow<'_, [u8]>> {
+        match self.raw_messages.get(message_id)? {
+            DecodedRawMessage::Borrowed(chain) => Some(part.contents(chain)),
+            DecodedRawMessage::Owned(vec) => Some(Cow::Owned(
+                part.contents(&ChainedBytes::new(vec)).into_owned(),
+            )),
+        }
+    }
 }
 
 impl DecodedPartContent<'_> {

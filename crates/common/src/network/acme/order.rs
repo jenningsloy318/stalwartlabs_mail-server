@@ -39,7 +39,7 @@ impl AcmeRequestBuilder {
                 self.challenge,
                 ChallengeType::Dns01 | ChallengeType::DnsPersist01
             ) {
-                vec![format!("*.{domain}")]
+                vec![format!("*.{domain}"), domain.to_string()]
             } else {
                 let server_name = server.core.network.server_name.as_str();
                 let domain_suffix = format!(".{domain}");
@@ -78,12 +78,19 @@ impl AcmeRequestBuilder {
         } else {
             hostnames
                 .iter()
-                .map(|hostname| format!("{hostname}.{domain}"))
+                .map(|h| {
+                    if h.contains('.') {
+                        h.clone()
+                    } else {
+                        format!("{h}.{domain}")
+                    }
+                })
                 .collect()
         };
 
-        let mut params = CertificateParams::new(domains.clone())
-            .map_err(|err| AcmeError::Crypto(format!("Failed to create certificate params: {}", err)))?;
+        let mut params = CertificateParams::new(domains.clone()).map_err(|err| {
+            AcmeError::Crypto(format!("Failed to create certificate params: {}", err))
+        })?;
         params.distinguished_name = DistinguishedName::new();
         let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)
             .map_err(|err| AcmeError::Crypto(format!("Failed to generate key pair: {}", err)))?;

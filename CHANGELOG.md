@@ -11,10 +11,17 @@ This version includes **multiple breaking changes**. If you are upgrading from v
 ## Changed
 
 ## Fixed
+- JMAP:
+  - Invalid `receivedAt` headers after importing (#2939).
+  - Sorting order issues when emails lack `receivedAt` headers.
+- IMAP: Fix `BINARY` fetch responses (#2940).
+- ACME: Allow requesting apex domain certificates.
+- Bootstrap: Accept RFC 6761 reserved TLDs during bootstrap.
 - Reverse proxy issues.
 - OSS builds.
 - DNS Updater:
   - RFC2136: TSIG secret not base64 decoded.
+  - Google DNS: Chunk TXT records when they exceed 255 characters.
   - Cloudflare: 
     - Fix `CAA` record updates.
     - Check zone subdomains when finding zones
