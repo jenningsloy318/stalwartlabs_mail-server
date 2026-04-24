@@ -13,14 +13,14 @@ impl<T: SessionStream> Session<T> {
     pub async fn handle_login(&mut self, request: Request<Command>) -> trc::Result<()> {
         let arguments = request.parse_login()?;
 
-        Box::pin(self.authenticate(
+        self.authenticate(
             Credentials::Basic {
                 username: arguments.username.to_string(),
                 secret: arguments.password.to_string(),
                 mfa_token: None,
             },
             arguments.tag,
-        ))
+        )
         .await
     }
 }

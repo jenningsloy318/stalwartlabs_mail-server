@@ -16,6 +16,12 @@ use store::{
 use trc::AddContext;
 use utils::codec::leb128::{Leb128Iterator, Leb128Vec};
 
+pub const FAILED_TO_DECODE_TOKEN: &str = concat!(
+    "Failed to decode token. If you are using an ",
+    "external OIDC provider, make sure it is configured as the default directory under ",
+    "the Authentication object."
+);
+
 pub struct TokenInfo {
     pub grant_type: GrantType,
     pub account_id: u32,
@@ -115,7 +121,7 @@ impl Server {
             .map_err(|_| {
                 trc::AuthEvent::Error
                     .into_err()
-                    .ctx(trc::Key::Reason, "Failed to decode token")
+                    .ctx(trc::Key::Reason, FAILED_TO_DECODE_TOKEN)
                     .caused_by(trc::location!())
                     .details(token_.to_string())
             })?;
@@ -135,7 +141,7 @@ impl Server {
             .ok_or_else(|| {
                 trc::AuthEvent::Error
                     .into_err()
-                    .ctx(trc::Key::Reason, "Failed to decode token")
+                    .ctx(trc::Key::Reason, FAILED_TO_DECODE_TOKEN)
                     .caused_by(trc::location!())
                     .details(token_.to_string())
             })?;
@@ -200,7 +206,7 @@ impl Server {
             .map_err(|err| {
                 trc::AuthEvent::Error
                     .into_err()
-                    .ctx(trc::Key::Details, "Failed to decode token")
+                    .ctx(trc::Key::Details, FAILED_TO_DECODE_TOKEN)
                     .caused_by(trc::location!())
                     .reason(err)
             })?;

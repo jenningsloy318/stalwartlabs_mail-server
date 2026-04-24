@@ -69,7 +69,7 @@ impl<T: SessionStream> Session<T> {
             match (token.mechanism, &mut token.credentials) {
                 (AUTH_PLAIN, _) => {
                     if let Some(credentials) = Credentials::decode_sasl_challenge_plain(&response) {
-                        return Box::pin(self.authenticate(credentials)).await;
+                        return self.authenticate(credentials).await;
                     }
                 }
                 (
@@ -84,20 +84,20 @@ impl<T: SessionStream> Session<T> {
                         Ok(true)
                     } else {
                         *secret = response.into_string();
-                        Box::pin(self.authenticate(std::mem::replace(
+                        self.authenticate(std::mem::replace(
                             &mut token.credentials,
                             Credentials::Basic {
                                 username: String::new(),
                                 secret: String::new(),
                                 mfa_token: None,
                             },
-                        )))
+                        ))
                         .await
                     };
                 }
                 (AUTH_OAUTHBEARER | AUTH_XOAUTH2, _) => {
                     if let Some(credentials) = Credentials::decode_sasl_challenge_oauth(&response) {
-                        return Box::pin(self.authenticate(credentials)).await;
+                        return self.authenticate(credentials).await;
                     }
                 }
                 _ => (),

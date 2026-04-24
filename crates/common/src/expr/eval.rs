@@ -227,6 +227,16 @@ impl<'x, V: ResolveVariable> EvalContext<'x, V, Expression, &mut Vec<CompactStri
                         stack.push(self.core.core.email.default_domain_name.as_str().into())
                     }
                     SystemVariable::NodeId => stack.push(self.core.core.network.node_id.into()),
+                    SystemVariable::NodeHostname => {
+                        stack.push(self.core.registry().local_hostname().into())
+                    }
+                    SystemVariable::NodeRole => stack.push(
+                        self.core
+                            .registry()
+                            .cluster_role()
+                            .unwrap_or_default()
+                            .into(),
+                    ),
                     SystemVariable::Metric(variable) => {
                         stack.push(Variable::Float(Collector::read_metric(*variable)));
                     }

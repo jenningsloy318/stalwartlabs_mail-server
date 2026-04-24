@@ -49,7 +49,7 @@ impl ClientRegistrationHandler for Server {
     ) -> trc::Result<HttpResponse> {
         let tenant_id = if !self.core.oauth.allow_anonymous_client_registration {
             // Authenticate request
-            let (_, access_token) = Box::pin(self.authenticate_headers(req, &session)).await?;
+            let (_, access_token) = self.authenticate_headers(req, &session).await?;
 
             // Validate permissions
             access_token.enforce_permission(Permission::OAuthClientRegistration)?;

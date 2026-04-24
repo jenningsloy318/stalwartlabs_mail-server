@@ -19291,7 +19291,7 @@ impl RegistryJsonPropertyPatch for MtaMilter {
             Some(Property::Enable) => self.enable.patch(pointer, value),
             Some(Property::Hostname) => self
                 .hostname
-                .patch(pointer.with_validators(&[StringValidator::Hostname]), value),
+                .patch(pointer.with_validators(&[StringValidator::Trim]), value),
             Some(Property::MaxResponseSize) => self.max_response_size.patch(pointer, value),
             Some(Property::TempFailOnError) => self.temp_fail_on_error.patch(pointer, value),
             Some(Property::ProtocolVersion) => self.protocol_version.patch(pointer, value),
@@ -20128,7 +20128,7 @@ impl RegistryJsonPropertyPatch for MtaRouteRelay {
         match pointer.next_property() {
             Some(Property::Address) => self
                 .address
-                .patch(pointer.with_validators(&[StringValidator::Hostname]), value),
+                .patch(pointer.with_validators(&[StringValidator::Trim]), value),
             Some(Property::AuthSecret) => self.auth_secret.patch(pointer, value),
             Some(Property::AuthUsername) => self.auth_username.patch(pointer, value),
             Some(Property::Port) => self.port.patch(pointer, value),
@@ -21711,7 +21711,7 @@ impl RegistryJsonPropertyPatch for MySqlSettings {
         match pointer.next_property() {
             Some(Property::Host) => self
                 .host
-                .patch(pointer.with_validators(&[StringValidator::Hostname]), value),
+                .patch(pointer.with_validators(&[StringValidator::Trim]), value),
             Some(Property::Port) => self.port.patch(pointer, value),
             Some(Property::Database) => self
                 .database
@@ -21895,7 +21895,7 @@ impl RegistryJsonPropertyPatch for MySqlStore {
             Some(Property::ReadReplicas) => self.read_replicas.patch(pointer, value),
             Some(Property::Host) => self
                 .host
-                .patch(pointer.with_validators(&[StringValidator::Hostname]), value),
+                .patch(pointer.with_validators(&[StringValidator::Trim]), value),
             Some(Property::Port) => self.port.patch(pointer, value),
             Some(Property::Database) => self
                 .database
@@ -23213,7 +23213,7 @@ impl RegistryJsonPropertyPatch for PostgreSqlSettings {
         match pointer.next_property() {
             Some(Property::Host) => self
                 .host
-                .patch(pointer.with_validators(&[StringValidator::Hostname]), value),
+                .patch(pointer.with_validators(&[StringValidator::Trim]), value),
             Some(Property::Port) => self.port.patch(pointer, value),
             Some(Property::Database) => self
                 .database
@@ -23379,7 +23379,7 @@ impl RegistryJsonPropertyPatch for PostgreSqlStore {
             Some(Property::ReadReplicas) => self.read_replicas.patch(pointer, value),
             Some(Property::Host) => self
                 .host
-                .patch(pointer.with_validators(&[StringValidator::Hostname]), value),
+                .patch(pointer.with_validators(&[StringValidator::Trim]), value),
             Some(Property::Port) => self.port.patch(pointer, value),
             Some(Property::Database) => self
                 .database

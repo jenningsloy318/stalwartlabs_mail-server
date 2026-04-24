@@ -307,6 +307,13 @@ impl RegistryStore {
     }
 
     #[cfg(feature = "test_mode")]
+    pub fn clone_with_port(&self, store: u16) -> Self {
+        let mut inner = self.0.as_ref().clone();
+        inner.env_https_port = Some(store);
+        Self(inner.into())
+    }
+
+    #[cfg(feature = "test_mode")]
     pub async fn new(
         path: &str,
         store: Store,

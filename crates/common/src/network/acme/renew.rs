@@ -105,9 +105,9 @@ impl Server {
         };
         let now = now();
         let expires_in = (parsed_cert.valid_not_after.timestamp() as u64).saturating_sub(now);
-        if expires_in < 86400 {
+        if expires_in < 3600 {
             return Err(AcmeError::Invalid(format!(
-                "Certificate expires in {} seconds, expected at least 86400 seconds",
+                "Certificate expires in {} seconds, expected at least 3600 seconds",
                 expires_in
             )));
         }

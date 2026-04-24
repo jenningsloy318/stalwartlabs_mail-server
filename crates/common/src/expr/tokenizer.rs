@@ -119,6 +119,8 @@ impl<'x> Tokenizer<'x> {
                                     "domain" => SystemVariable::Domain,
                                     "hostname" => SystemVariable::Hostname,
                                     "node_id" => SystemVariable::NodeId,
+                                    "node_hostname" => SystemVariable::NodeHostname,
+                                    "node_role" => SystemVariable::NodeRole,
                                     other => {
                                         return Err(format!(
                                             "Invalid system variable name {:?}",

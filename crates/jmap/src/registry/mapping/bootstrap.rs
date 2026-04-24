@@ -506,7 +506,7 @@ pub(crate) async fn bootstrap_set(
 }
 
 fn is_valid_domain(hostname: &str) -> bool {
-    const RESERVED_TLDS: &[&str] = &["test", "localhost", "local"];
+    const RESERVED_TLDS: &[&str] = &["test", "localhost", "local", "internal"];
     psl::domain_str(hostname).is_some()
         || RESERVED_TLDS.contains(&hostname)
         || hostname

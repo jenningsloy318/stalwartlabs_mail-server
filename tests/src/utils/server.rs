@@ -311,6 +311,12 @@ impl TestServerBuilder {
         let mut servers = Listeners::parse(&mut self.bootstrap).await;
         servers.bind_and_drop_priv(&mut self.bootstrap);
 
+        // Set HTTP port
+        self.bootstrap.registry = self
+            .bootstrap
+            .registry
+            .clone_with_port(self.http_listener_port);
+
         if init_store {
             // Add safe defaults if missing
             self.bootstrap.insert_safe_defaults().await;

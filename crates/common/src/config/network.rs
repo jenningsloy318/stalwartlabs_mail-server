@@ -430,7 +430,7 @@ impl Http {
         }
 
         #[cfg(any(feature = "dev_mode", feature = "test_mode"))]
-        let server_name = "127.0.0.1:8080";
+        let server_name = "127.0.0.1";
 
         Http {
             url_https: if !bp.registry.is_recovery_mode() {

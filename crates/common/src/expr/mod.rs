@@ -175,6 +175,8 @@ pub enum SystemVariable {
     Hostname,
     Domain,
     NodeId,
+    NodeHostname,
+    NodeRole,
     Metric(MetricType),
 }
 

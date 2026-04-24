@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file. This projec
 This version includes **multiple breaking changes**. If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
 ## Added
+- OIDC: Extract username from JWT token.
+- `system('node_hostname')` and `system('node_role')` expression variables to retrieve the local node hostname and cluster role respectively.
 
 ## Changed
 
@@ -15,8 +17,11 @@ This version includes **multiple breaking changes**. If you are upgrading from v
   - Invalid `receivedAt` headers after importing (#2939).
   - Sorting order issues when emails lack `receivedAt` headers.
 - IMAP: Fix `BINARY` fetch responses (#2940).
+- WebDAV: Fix ACL validation for target folders.
 - ACME: Allow requesting apex domain certificates.
-- Bootstrap: Accept RFC 6761 reserved TLDs during bootstrap.
+- Hostname issues: 
+  - Accept RFC 6761 reserved TLDs during bootstrap.
+  - Allow hostnames without TLDs in remote server settings.
 - Reverse proxy issues.
 - OSS builds.
 - DNS Updater:

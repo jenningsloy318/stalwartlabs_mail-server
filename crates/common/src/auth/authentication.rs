@@ -12,6 +12,7 @@ use crate::{
         oauth::GrantType,
     },
 };
+use base64::{Engine, engine::general_purpose};
 use directory::{
     Credentials, Directory,
     core::secret::{SecretVerificationResult, verify_mfa_secret_hash, verify_secret_hash},
@@ -37,8 +38,7 @@ pub struct Username {
 
 impl Server {
     pub async fn authenticate(&self, req: &AuthRequest) -> trc::Result<AccessToken> {
-        match self
-            .route_auth_request(req)
+        match Box::pin(self.route_auth_request(req))
             .await
             .and_then(|token| token.assert_has_permission(Permission::Authenticate))
         {
@@ -297,14 +297,20 @@ impl Server {
                     return Ok(AccessToken::new_admin());
                 }
 
-                // Obtain external directory, if any
+                // Obtain external directory, if any. When no username is supplied
+                // (e.g. HTTP bearer auth), peek at the JWT claims to find the
+                // user's domain so per-domain OIDC directories are reachable.
                 let directory = if let Some(username) = username.as_deref().map(UsernameParts::new)
                 {
                     if let Some(domain_name) = username.auth_as().domain() {
                         self.get_directory_for_domain(domain_name).await?
+                    } else if let Some(domain_name) = extract_jwt_domain(token) {
+                        self.get_directory_for_domain(&domain_name).await?
                     } else {
                         self.get_default_directory()
                     }
+                } else if let Some(domain_name) = extract_jwt_domain(token) {
+                    self.get_directory_for_domain(&domain_name).await?
                 } else {
                     self.get_default_directory()
                 };
@@ -494,6 +500,27 @@ impl Server {
 
         self.get_default_directory()
     }
+}
+
+fn extract_jwt_domain(token: &str) -> Option<String> {
+    let mut parts = token.split('.');
+    let _header = parts.next()?;
+    let payload = parts.next()?;
+    let _signature = parts.next()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    let payload_bytes = general_purpose::URL_SAFE_NO_PAD.decode(payload).ok()?;
+    let claims: serde_json::Value = serde_json::from_slice(&payload_bytes).ok()?;
+    for claim in ["email", "preferred_username", "upn"] {
+        if let Some(val) = claims.get(claim).and_then(|v| v.as_str())
+            && let Some((_, domain)) = val.rsplit_once('@')
+            && !domain.is_empty()
+        {
+            return Some(domain.to_ascii_lowercase());
+        }
+    }
+    None
 }
 
 impl UsernameParts {

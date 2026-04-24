@@ -221,9 +221,9 @@ dependencies = [
 
 [[package]]
 name = "async-compression"
-version = "0.4.41"
+version = "0.4.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0f9ee0f6e02ffd7ad5816e9464499fba7b3effd01123b515c41d1697c43dad1"
+checksum = "e79b3f8a79cccc2898f31920fc69f304859b3bd567490f75ebf51ae1c792a9ac"
 dependencies = [
  "compression-codecs",
  "compression-core",
@@ -582,27 +582,12 @@ dependencies = [
 
 [[package]]
 name = "bit-set"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0700ddab506f33b20a03b13996eccd309a48e5ff77d0d95926aa0210fb4e95f1"
-dependencies = [
- "bit-vec 0.6.3",
-]
-
-[[package]]
-name = "bit-set"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08807e080ed7f9d5433fa9b275196cfc35414f66a0c79d864dc51a0d825231a3"
 dependencies = [
- "bit-vec 0.8.0",
+ "bit-vec",
 ]
-
-[[package]]
-name = "bit-vec"
-version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
 
 [[package]]
 name = "bit-vec"
@@ -875,9 +860,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.60"
+version = "1.2.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43c5703da9466b66a946814e1adf53ea2c90f10063b86290cc9eb67ce3478a20"
+checksum = "d16d90359e986641506914ba71350897565610e87ce0ad9e6f28569db3dd5c6d"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1050,7 +1035,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "aes-gcm-siv",
  "ahash",
@@ -1155,9 +1140,9 @@ dependencies = [
 
 [[package]]
 name = "compression-codecs"
-version = "0.4.37"
+version = "0.4.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb7b51a7d9c967fc26773061ba86150f19c50c0d65c887cb1fbe295fd16619b7"
+checksum = "ce2548391e9c1929c21bf6aa2680af86fe4c1b33e6cea9ac1cfeec0bd11218cf"
 dependencies = [
  "compression-core",
  "flate2",
@@ -1166,9 +1151,9 @@ dependencies = [
 
 [[package]]
 name = "compression-core"
-version = "0.4.31"
+version = "0.4.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75984efb6ed102a0d42db99afb6c1948f0380d1d91808d5529916e6c08b49d8d"
+checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "concurrent-queue"
@@ -1562,13 +1547,13 @@ checksum = "8b1e3a325bc115f096c8b77bbf027a7c2592230e70be2d985be950d3d5e60ebe"
 
 [[package]]
 name = "data-encoding"
-version = "2.10.0"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
+checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
 name = "dav"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "calcard",
  "chrono",
@@ -1591,7 +1576,7 @@ dependencies = [
 
 [[package]]
 name = "dav-proto"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "calcard",
  "chrono",
@@ -1789,7 +1774,7 @@ dependencies = [
 
 [[package]]
 name = "directory"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "argon2",
@@ -2025,7 +2010,7 @@ dependencies = [
 
 [[package]]
 name = "email"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2140,7 +2125,7 @@ dependencies = [
 
 [[package]]
 name = "event_macro"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2167,22 +2152,22 @@ checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fancy-regex"
-version = "0.13.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "531e46835a22af56d1e3b66f04844bed63158bc094a628bec1d321d9b4c44bf2"
+checksum = "72cf461f865c862bb7dc573f643dd6a2b6842f7c30b07882b56bd148cc2761b8"
 dependencies = [
- "bit-set 0.5.3",
+ "bit-set",
  "regex-automata",
  "regex-syntax",
 ]
 
 [[package]]
 name = "fancy-regex"
-version = "0.17.0"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72cf461f865c862bb7dc573f643dd6a2b6842f7c30b07882b56bd148cc2761b8"
+checksum = "e1e1dacd0d2082dfcf1351c4bdd566bbe89a2b263235a2b50058f1e130a47277"
 dependencies = [
- "bit-set 0.8.0",
+ "bit-set",
  "regex-automata",
  "regex-syntax",
 ]
@@ -2647,7 +2632,7 @@ dependencies = [
 
 [[package]]
 name = "groupware"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "calcard",
@@ -2947,7 +2932,7 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "async-stream",
  "base64 0.22.1",
@@ -3046,7 +3031,7 @@ dependencies = [
 
 [[package]]
 name = "http_proto"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "common",
  "compact_str",
@@ -3081,9 +3066,9 @@ checksum = "135b12329e5e3ce057a9f972339ea52bc954fe1e9358ef27f95e89716fbc5424"
 
 [[package]]
 name = "hybrid-array"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3944cf8cf766b40e2a1a333ee5e9b563f854d5fa49d6a8ca2764e97c6eddb214"
+checksum = "08d46837a0ed51fe95bd3b05de33cd64a1ee88fc797477ca48446872504507c5"
 dependencies = [
  "typenum",
 ]
@@ -3318,7 +3303,7 @@ checksum = "09e54e57b4c48b40f7aec75635392b12b3421fa26fe8b4332e63138ed278459c"
 
 [[package]]
 name = "imap"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "common",
@@ -3345,7 +3330,7 @@ dependencies = [
 
 [[package]]
 name = "imap_proto"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "chrono",
@@ -3555,7 +3540,7 @@ dependencies = [
 
 [[package]]
 name = "jmap"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "aes-gcm",
  "aes-gcm-siv",
@@ -3643,7 +3628,7 @@ dependencies = [
 
 [[package]]
 name = "jmap_proto"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "calcard",
@@ -3840,7 +3825,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba4ebbd48ce411c1d10fb35185f5a51a7bfa3d8b24b4e330d30c9e3a34129501"
 dependencies = [
  "ascii-canvas",
- "bit-set 0.8.0",
+ "bit-set",
  "ena",
  "itertools 0.14.0",
  "lalrpop-util",
@@ -3922,9 +3907,9 @@ checksum = "b3a6a8c165077efc8f3a971534c50ea6a1a18b329ef4a66e897a7e3a1494565f"
 
 [[package]]
 name = "libc"
-version = "0.2.185"
+version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52ff2c0fe9bc6cb6b14a0592c2ff4fa9ceb83eea9db979b0487cd054946a2b8f"
+checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
 name = "libflate"
@@ -4152,7 +4137,7 @@ dependencies = [
 
 [[package]]
 name = "managesieve"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "common",
@@ -4265,7 +4250,7 @@ checksum = "c797b9d6bb23aab2fc369c65f871be49214f5c759af65bde26ffaaa2b646b492"
 
 [[package]]
 name = "migration"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "base64 0.22.1",
  "common",
@@ -4485,7 +4470,7 @@ dependencies = [
 
 [[package]]
 name = "nlp"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "bincode 1.3.3",
@@ -5229,7 +5214,7 @@ dependencies = [
 
 [[package]]
 name = "pop3"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "common",
  "directory",
@@ -5390,7 +5375,7 @@ dependencies = [
 
 [[package]]
 name = "proc_macros"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5791,9 +5776,9 @@ dependencies = [
 
 [[package]]
 name = "rasn"
-version = "0.28.12"
+version = "0.28.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b5124d11b83affd994615edb202e27cb7990ea64241255fe3b72c03f311d108"
+checksum = "88235e585f2f3fc26ad809c79a84dd77e6a7203eb7d12e5bcaab89fc036d3d90"
 dependencies = [
  "bitvec",
  "bitvec-nom2",
@@ -5814,9 +5799,9 @@ dependencies = [
 
 [[package]]
 name = "rasn-cms"
-version = "0.28.12"
+version = "0.28.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e14205d1fff7071fc387e5ba3e3a3beab9154cf9e516e534cc381be251f0b7c"
+checksum = "37feeda266abb6b1a2dbc2cdf7158b3769ae62222fbab5f350010d62ec82e35b"
 dependencies = [
  "rasn",
  "rasn-pkix",
@@ -5824,9 +5809,9 @@ dependencies = [
 
 [[package]]
 name = "rasn-derive"
-version = "0.28.12"
+version = "0.28.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a597b42152853fced502c26baa6c51b0fc2f1cbc2c07e019d3ea4d6872475d2e"
+checksum = "11dcd4dab09ceadedb3e2bedf340deb583f0e25bba9ad966b5655c2fb62b1392"
 dependencies = [
  "proc-macro2",
  "rasn-derive-impl",
@@ -5835,9 +5820,9 @@ dependencies = [
 
 [[package]]
 name = "rasn-derive-impl"
-version = "0.28.12"
+version = "0.28.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbf5ea9c459c6029dcdd4b95dfbb521a6c3a384527c3a3b5c7e8c260d35f5157"
+checksum = "f121c276d3f2fba8caabc870288de3f81abdb0bb94d5510651e58e1e00a7b9e7"
 dependencies = [
  "either",
  "itertools 0.13.0",
@@ -5849,9 +5834,9 @@ dependencies = [
 
 [[package]]
 name = "rasn-pkix"
-version = "0.28.12"
+version = "0.28.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5710ec0a395b7730c94d881132e3dcc2c13d3191ad788d6dfb48215dfa96d8e"
+checksum = "dd8a385ace6c844d2389fdfe8c82637dd742d7b997a6fb5826dbb97f4539057e"
 dependencies = [
  "rasn",
 ]
@@ -6219,9 +6204,9 @@ checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 
 [[package]]
 name = "roaring"
-version = "0.11.3"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ba9ce64a8f45d7fc86358410bb1a82e8c987504c0d4900e9141d69a9f26c885"
+checksum = "1dedc5658c6ecb3bdb5ef5f3295bb9253f42dcf3fd1402c03f6b1f7659c3c4a9"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -6443,9 +6428,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-pki-types"
-version = "1.14.0"
+version = "1.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be040f8b0a225e40375822a563fa9524378b9d63112f53e19ffff34df5d33fdd"
+checksum = "30a7197ae7eb376e574fe940d068c30fe0462554a3ddbe4eca7838e049c937a9"
 dependencies = [
  "web-time",
  "zeroize",
@@ -6939,7 +6924,7 @@ dependencies = [
 
 [[package]]
 name = "services"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "aes-gcm",
  "aes-gcm-siv",
@@ -7191,7 +7176,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "smtp"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "base64 0.22.1",
@@ -7292,7 +7277,7 @@ dependencies = [
 
 [[package]]
 name = "spam-filter"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "common",
  "compact_str",
@@ -7402,7 +7387,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "stalwart"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "common",
  "coordinator",
@@ -7410,7 +7395,7 @@ dependencies = [
  "directory",
  "email",
  "groupware",
- "http 0.16.0",
+ "http 0.16.1",
  "http_proto",
  "imap",
  "jemallocator",
@@ -7439,7 +7424,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "arc-swap",
@@ -7615,7 +7600,7 @@ dependencies = [
 
 [[package]]
 name = "tests"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "async-trait",
@@ -7639,7 +7624,7 @@ dependencies = [
  "form_urlencoded",
  "futures",
  "groupware",
- "http 0.16.0",
+ "http 0.16.1",
  "http-body-util",
  "http_proto",
  "hyper",
@@ -8175,7 +8160,7 @@ dependencies = [
 
 [[package]]
 name = "trc"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "base64 0.22.1",
@@ -8268,7 +8253,7 @@ checksum = "40ce102ab67701b8526c123c1bab5cbe42d7040ccfd0f64af1a385808d2f43de"
 
 [[package]]
 name = "types"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "blake3",
  "compact_str",
@@ -8433,7 +8418,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "utils"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "ahash",
  "arcstr",
@@ -10063,14 +10048,14 @@ dependencies = [
 
 [[package]]
 name = "zxcvbn"
-version = "3.1.0"
+version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad76e35b00ad53688d6b90c431cabe3cbf51f7a4a154739e04b63004ab1c736c"
+checksum = "f9eaee90f4a795d1eb4ba6c51e1c1721d4784d550e8efa7b2600f29c867365e0"
 dependencies = [
  "chrono",
  "derive_builder",
- "fancy-regex 0.13.0",
- "itertools 0.13.0",
+ "fancy-regex 0.18.0",
+ "itertools 0.14.0",
  "lazy_static",
  "regex",
  "time",

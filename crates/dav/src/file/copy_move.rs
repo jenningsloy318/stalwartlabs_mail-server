@@ -160,7 +160,7 @@ impl FileCopyMoveRequestHandler for Server {
         if let Some(document_id) = destination.document_id {
             if let Some(delete_destination) = &delete_destination
                 && !access_token.is_member(to_account_id)
-                && !from_resources.has_access_to_container(
+                && !to_resources.has_access_to_container(
                     access_token,
                     delete_destination.document_id.unwrap(),
                     Acl::Delete,
@@ -170,7 +170,7 @@ impl FileCopyMoveRequestHandler for Server {
             }
 
             if !access_token.is_member(to_account_id)
-                && !from_resources.has_access_to_container(access_token, document_id, Acl::Modify)
+                && !to_resources.has_access_to_container(access_token, document_id, Acl::Modify)
             {
                 return Err(DavError::Code(StatusCode::FORBIDDEN));
             }
