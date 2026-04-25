@@ -4147,9 +4147,7 @@ impl RegistryJsonPropertyPatch for Bootstrap {
         value: JmapValue<'x>,
     ) -> PatchResult<'x> {
         match pointer.next_property() {
-            Some(Property::ServerHostname) => self
-                .server_hostname
-                .patch(pointer.with_validators(&[StringValidator::Hostname]), value),
+            Some(Property::ServerHostname) => self.server_hostname.patch(pointer, value),
             Some(Property::DefaultDomain) => self.default_domain.patch(pointer, value),
             Some(Property::RequestTlsCertificate) => {
                 self.request_tls_certificate.patch(pointer, value)

@@ -371,7 +371,7 @@ pub async fn test(test: &TestServer) {
         .1;
     let mut sans = certificate.subject_alternative_names.into_inner();
     sans.sort();
-    assert_eq!(sans, vec!["*.dns.org".to_string()]);
+    assert_eq!(sans, vec!["*.dns.org".to_string(), "dns.org".to_string()]);
     account.registry_destroy_all(ObjectType::Certificate).await;
     account.registry_destroy_all(ObjectType::Task).await;
 
@@ -412,7 +412,10 @@ pub async fn test(test: &TestServer) {
         .1;
     let mut sans = certificate.subject_alternative_names.into_inner();
     sans.sort();
-    assert_eq!(sans, vec!["*.persist.org".to_string()]);
+    assert_eq!(
+        sans,
+        vec!["*.persist.org".to_string(), "persist.org".to_string()]
+    );
 
     // Cleanup
     account
