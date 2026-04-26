@@ -9,8 +9,8 @@ Two modes:
 
   convert — read those two JSON files and emit:
               * config.json   — plain DataStore object (Stalwart's main config)
-              * export.json   — array of `update`/`create` ops for everything
-                               else, in load order.
+              * export.json   — NDJSON stream of `update`/`create` ops for
+                               everything else, one op per line, in load order.
 
 Usage:
     python migrate_v016.py dump --url https://mail.example.com \
@@ -1595,8 +1595,10 @@ def cmd_convert(args: argparse.Namespace) -> int:
 
     ops = build_export_ops(result)
     with open(args.output, "w", encoding="utf-8") as f:
-        json.dump(ops, f, indent=2, ensure_ascii=False)
-    print(f"wrote {args.output} ({len(ops)} ops)", file=sys.stderr)
+        for op in ops:
+            f.write(json.dumps(op, ensure_ascii=False))
+            f.write("\n")
+    print(f"wrote {args.output} ({len(ops)} ops, NDJSON)", file=sys.stderr)
     for op in ops:
         kind = op["@type"]
         name = op["object"]
@@ -1635,7 +1637,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Output file for the DataStore object "
                         "(default: config.json).")
     c.add_argument("--output", default="export.json",
-                   help="Output file for the operations array "
+                   help="Output NDJSON file with one operation per line "
                         "(default: export.json).")
     c.set_defaults(func=cmd_convert)
 
