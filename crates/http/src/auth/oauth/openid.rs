@@ -33,7 +33,10 @@ pub trait OpenIdHandler: Sync + Send {
         account_id: u32,
     ) -> impl Future<Output = trc::Result<HttpResponse>> + Send;
 
-    fn handle_oidc_metadata(&self) -> impl Future<Output = trc::Result<HttpResponse>> + Send;
+    fn handle_oidc_metadata(
+        &self,
+        strip_base_url: bool,
+    ) -> impl Future<Output = trc::Result<HttpResponse>> + Send;
 }
 
 impl OpenIdHandler for Server {
@@ -52,8 +55,12 @@ impl OpenIdHandler for Server {
         .into_http_response())
     }
 
-    async fn handle_oidc_metadata(&self) -> trc::Result<HttpResponse> {
-        let base_url = &self.core.network.http.url_https;
+    async fn handle_oidc_metadata(&self, strip_base_url: bool) -> trc::Result<HttpResponse> {
+        let base_url = if strip_base_url {
+            ""
+        } else {
+            &self.core.network.http.url_https
+        };
 
         Ok(JsonResponse::new(OpenIdMetadata {
             authorization_endpoint: format!("{base_url}/login",),

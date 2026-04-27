@@ -38,6 +38,7 @@ use store::{
     write::{AnyKey, BatchBuilder},
 };
 use types::id::Id;
+use utils::is_valid_domain;
 
 pub(crate) async fn bootstrap_get(
     mut get: RegistryGetResponse<'_>,
@@ -503,15 +504,6 @@ pub(crate) async fn bootstrap_set(
     }
 
     Ok(set)
-}
-
-fn is_valid_domain(hostname: &str) -> bool {
-    const RESERVED_TLDS: &[&str] = &["test", "localhost", "local", "internal"];
-    psl::domain_str(hostname).is_some()
-        || RESERVED_TLDS.contains(&hostname)
-        || hostname
-            .rsplit_once('.')
-            .is_some_and(|(_, tld)| RESERVED_TLDS.contains(&tld))
 }
 
 async fn write_object(registry: &RegistryStore, object: &Object) -> Result<Id, SetError<Property>> {

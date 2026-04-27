@@ -416,6 +416,128 @@ def split_email(addr: str) -> tuple[str, str] | None:
         return None
     return (local, domain)
 
+_LABEL_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
+_RFC6761_RESERVED_TLDS = {"test", "local", "localhost", "invalid", "example"}
+
+def is_valid_domain_name(name: str) -> bool:
+
+    if not name or len(name) > 253:
+        return False
+    name = name.strip(".").lower()
+    if not name:
+        return False
+    labels = name.split(".")
+    if len(labels) < 2:
+        return False
+    for label in labels:
+        if not _LABEL_RE.match(label):
+            return False
+    return True
+
+def is_valid_local_part(local: str) -> bool:
+
+    return bool(local) and "@" not in local
+
+def parse_path_patch(arg: str) -> tuple[str, str]:
+
+    if "=" not in arg:
+        raise argparse.ArgumentTypeError(
+            f"--patch-paths expects SOURCE=DEST, got {arg!r}"
+        )
+    src, _, dst = arg.partition("=")
+    src = src.rstrip("/")
+    dst = dst.rstrip("/")
+    if not src or not dst:
+        raise argparse.ArgumentTypeError(
+            f"--patch-paths expects non-empty SOURCE and DEST, got {arg!r}"
+        )
+    return (src, dst)
+
+def apply_path_patches(value: Any, patches: list[tuple[str, str]]) -> tuple[Any, int]:
+
+    count = 0
+    if isinstance(value, str):
+        for src, dst in patches:
+            if value == src or value.startswith(src + "/"):
+                return (dst + value[len(src):], 1)
+        return (value, 0)
+    if isinstance(value, list):
+        new_list: list[Any] = []
+        for item in value:
+            patched, n = apply_path_patches(item, patches)
+            new_list.append(patched)
+            count += n
+        return (new_list, count)
+    if isinstance(value, dict):
+        new_dict: dict[Any, Any] = {}
+        for k, v in value.items():
+            patched, n = apply_path_patches(v, patches)
+            new_dict[k] = patched
+            count += n
+        return (new_dict, count)
+    return (value, 0)
+
+def detect_legacy_paths(settings: dict[str, str], prefix: str = "/opt/stalwart") -> int:
+
+    needle = prefix.rstrip("/") + "/"
+    exact = prefix.rstrip("/")
+    return sum(
+        1
+        for v in settings.values()
+        if isinstance(v, str) and (needle in v or v.endswith(exact))
+    )
+
+_CONSUMED_PREFIXES: tuple[str, ...] = (
+    "acme.",
+    "certificate.",
+    "enterprise.",
+    "lookup.default.",
+    "server.hostname",
+    "signature.",
+    "storage.",
+    "store.",
+    "version.",
+)
+
+def is_consumed_setting_key(key: str) -> bool:
+
+    for prefix in _CONSUMED_PREFIXES:
+        if prefix.endswith(".") and key.startswith(prefix):
+            return True
+        if not prefix.endswith(".") and (key == prefix or key.startswith(prefix + ".")):
+            return True
+    return False
+
+def compute_unmigrated_keys(settings: dict[str, str]) -> list[str]:
+
+    return sorted(k for k in settings if not is_consumed_setting_key(k))
+
+def write_unmigrated_summary(unmigrated: list[str], path: str) -> None:
+
+    counts: dict[str, int] = {}
+    for k in unmigrated:
+        parts = k.split(".", 2)
+        prefix = ".".join(parts[:2]) if len(parts) >= 2 else parts[0]
+        counts[prefix] = counts.get(prefix, 0) + 1
+
+    width = max((len(p) for p in counts), default=0)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(
+            "# Unmigrated v0.15 settings\n"
+            "\n"
+            "These v0.15 settings were not migrated by the script and must be\n"
+            "reviewed manually. The list below is grouped by the first two\n"
+            "segments of the setting key. Each prefix maps to one or more v0.16\n"
+            "objects; consult UPGRADING/v0_16.md and the v0.16 reference docs\n"
+            "to identify the equivalent on the new schema.\n"
+            "\n"
+            f"Total unmigrated keys: {len(unmigrated)} across "
+            f"{len(counts)} prefixes.\n"
+            "\n"
+        )
+        for prefix in sorted(counts):
+            f.write(f"  {prefix:<{width}}  {counts[prefix]:5d} keys\n")
+
 def group_settings_by_prefix(settings: dict[str, str], prefix: str) -> dict[str, dict[str, str]]:
 
     raise NotImplementedError
@@ -593,6 +715,7 @@ class Converter:
         certificates = self._build_certificates()
 
         self._check_duplicate_emails(accounts, mailing_lists)
+        self._validate_records(domains, accounts, mailing_lists, dkim_signatures)
 
         data_store = self._build_data_store()
         blob_store = self._build_blob_store()
@@ -1523,6 +1646,120 @@ class Converter:
                 claim(alias["name"], alias["domainId"],
                       f"alias of MailingList {cid} ({obj['name']})")
 
+    def _validate_records(
+        self,
+        domains: dict[str, dict[str, Any]],
+        accounts: dict[str, dict[str, Any]],
+        mailing_lists: dict[str, dict[str, Any]],
+        dkim_signatures: dict[str, dict[str, Any]],
+    ) -> None:
+        bad_domain_cids: set[str] = set()
+        rejected_domains = 0
+        for cid in list(domains.keys()):
+            name = domains[cid].get("name", "")
+            if not is_valid_domain_name(name):
+                print(
+                    f"warning: dropping domain {name!r}: not a valid v0.16 hostname "
+                    f"(must have at least two labels, valid characters)",
+                    file=sys.stderr,
+                )
+                bad_domain_cids.add(cid)
+                rejected_domains += 1
+                del domains[cid]
+
+        renamed_accounts = 0
+        dropped_accounts: list[str] = []
+        for cid in list(accounts.keys()):
+            obj = accounts[cid]
+            name = obj.get("name", "")
+            kind = obj.get("@type", "Account")
+            domain_ref = obj.get("domainId", "")
+            d_cid = domain_ref[1:] if domain_ref.startswith("#") else domain_ref
+            if d_cid in bad_domain_cids:
+                print(
+                    f"warning: dropping {kind} {name!r}: its domain was rejected",
+                    file=sys.stderr,
+                )
+                dropped_accounts.append(cid)
+                del accounts[cid]
+                continue
+            if "@" in name:
+                trimmed = name.replace("@", "").strip()
+                if trimmed and is_valid_local_part(trimmed):
+                    print(
+                        f"warning: renaming {kind} {name!r} to {trimmed!r} "
+                        f"(local-part must not contain '@')",
+                        file=sys.stderr,
+                    )
+                    obj["name"] = trimmed
+                    renamed_accounts += 1
+                else:
+                    print(
+                        f"warning: dropping {kind} {name!r}: invalid local-part, "
+                        f"rename in v0.15 before retrying",
+                        file=sys.stderr,
+                    )
+                    dropped_accounts.append(cid)
+                    del accounts[cid]
+                    continue
+            new_aliases: dict[str, dict[str, Any]] = {}
+            for idx, alias in obj.get("aliases", {}).items():
+                a_dom = alias.get("domainId", "")
+                a_dcid = a_dom[1:] if a_dom.startswith("#") else a_dom
+                if a_dcid in bad_domain_cids:
+                    print(
+                        f"warning: dropping alias of {kind} {name!r}: domain rejected",
+                        file=sys.stderr,
+                    )
+                    continue
+                if "@" in alias.get("name", ""):
+                    print(
+                        f"warning: dropping alias {alias.get('name')!r} of "
+                        f"{kind} {name!r}: invalid local-part",
+                        file=sys.stderr,
+                    )
+                    continue
+                new_aliases[idx] = alias
+            obj["aliases"] = new_aliases
+
+        for cid in list(mailing_lists.keys()):
+            obj = mailing_lists[cid]
+            domain_ref = obj.get("domainId", "")
+            d_cid = domain_ref[1:] if domain_ref.startswith("#") else domain_ref
+            if d_cid in bad_domain_cids:
+                print(
+                    f"warning: dropping MailingList {obj.get('name')!r}: domain rejected",
+                    file=sys.stderr,
+                )
+                del mailing_lists[cid]
+
+        dropped_dkim = 0
+        for cid in list(dkim_signatures.keys()):
+            obj = dkim_signatures[cid]
+            domain_ref = obj.get("domainId", "")
+            d_cid = domain_ref[1:] if domain_ref.startswith("#") else domain_ref
+            if d_cid and d_cid in bad_domain_cids:
+                print(
+                    f"warning: dropping DkimSignature for rejected domain",
+                    file=sys.stderr,
+                )
+                del dkim_signatures[cid]
+                dropped_dkim += 1
+
+        if rejected_domains or renamed_accounts or dropped_accounts or dropped_dkim:
+            print(
+                f"validation summary: {rejected_domains} domain(s) rejected, "
+                f"{renamed_accounts} account(s) renamed, "
+                f"{len(dropped_accounts)} account(s) dropped, "
+                f"{dropped_dkim} DKIM signature(s) dropped",
+                file=sys.stderr,
+            )
+            print(
+                "review the warnings above; fix them in the source v0.15 deployment "
+                "and rerun if any of the rejections are unintentional.",
+                file=sys.stderr,
+            )
+
 SINGLETON_ORDER = [
     "SystemSettings",
     "Enterprise",
@@ -1588,12 +1825,36 @@ def cmd_convert(args: argparse.Namespace) -> int:
         raise ConvertError(
             "DataStore could not be built (storage.data missing or invalid)"
         )
+
+    patches: list[tuple[str, str]] = list(args.patch_paths or [])
+    if not patches and not args.keep_paths:
+        legacy = detect_legacy_paths(settings, "/opt/stalwart")
+        if legacy:
+            print(
+                f"notice: detected legacy Docker paths under /opt/stalwart in "
+                f"{legacy} settings.\n"
+                f"        the v0.16 Docker image mounts persistent data at "
+                f"/var/lib/stalwart.\n"
+                f"        rerun with --patch-paths /opt/stalwart=/var/lib/stalwart "
+                f"to rewrite,\n"
+                f"        or pass --keep-paths to suppress this notice "
+                f"(e.g. for binary deployments).",
+                file=sys.stderr,
+            )
+
+    if patches:
+        data_store, n_cfg = apply_path_patches(data_store, patches)
+        print(f"  patched {n_cfg} path(s) in {args.config}", file=sys.stderr)
+
     with open(args.config, "w", encoding="utf-8") as f:
         json.dump(data_store, f, indent=2, ensure_ascii=False)
     print(f"wrote {args.config} (DataStore: @type={data_store.get('@type')!r})",
           file=sys.stderr)
 
     ops = build_export_ops(result)
+    if patches:
+        ops, n_ops = apply_path_patches(ops, patches)
+        print(f"  patched {n_ops} path(s) in {args.output}", file=sys.stderr)
     with open(args.output, "w", encoding="utf-8") as f:
         for op in ops:
             f.write(json.dumps(op, ensure_ascii=False))
@@ -1607,6 +1868,16 @@ def cmd_convert(args: argparse.Namespace) -> int:
         else:
             print(f"  create {name}: {len(op['value'])} records",
                   file=sys.stderr)
+
+    if args.unmigrated_output:
+        unmigrated = compute_unmigrated_keys(settings)
+        if unmigrated:
+            write_unmigrated_summary(unmigrated, args.unmigrated_output)
+            print(
+                f"wrote {args.unmigrated_output} ({len(unmigrated)} v0.15 "
+                f"settings keys not migrated; review and recreate manually)",
+                file=sys.stderr,
+            )
     return 0
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1639,6 +1910,21 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--output", default="export.json",
                    help="Output NDJSON file with one operation per line "
                         "(default: export.json).")
+    c.add_argument("--patch-paths", action="append", type=parse_path_patch,
+                   metavar="SOURCE=DEST",
+                   help="Rewrite paths beginning with SOURCE to DEST in both "
+                        "config.json and export.json. May be passed multiple "
+                        "times. Use to migrate Docker deployments from "
+                        "/opt/stalwart to /var/lib/stalwart.")
+    c.add_argument("--keep-paths", action="store_true",
+                   help="Suppress the legacy-path detection notice. Use when "
+                        "the on-disk paths in the v0.15 deployment are also "
+                        "valid for the v0.16 deployment (typical for binary "
+                        "installs).")
+    c.add_argument("--unmigrated-output", default="unmigrated.txt",
+                   help="Output file listing v0.15 setting prefixes that the "
+                        "script did not migrate (default: unmigrated.txt). "
+                        "Pass an empty string to skip writing this file.")
     c.set_defaults(func=cmd_convert)
 
     return p

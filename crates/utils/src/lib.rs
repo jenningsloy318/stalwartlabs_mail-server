@@ -340,12 +340,18 @@ pub fn sanitize_domain(domain: &str) -> Option<String> {
         }
     }
 
-    if found_dot
-        && last_ch != '.'
-        && psl::domain(result.as_bytes()).is_some_and(|d| d.suffix().typ().is_some())
-    {
+    if found_dot && last_ch != '.' && is_valid_domain(&result) {
         Some(result)
     } else {
         None
     }
+}
+
+pub fn is_valid_domain(domain: &str) -> bool {
+    const RESERVED_TLDS: &[&str] = &["test", "localhost", "local", "internal"];
+    psl::domain(domain.as_bytes()).is_some_and(|d| d.suffix().typ().is_some())
+        || RESERVED_TLDS.contains(&domain)
+        || domain
+            .rsplit_once('.')
+            .is_some_and(|(_, tld)| RESERVED_TLDS.contains(&tld))
 }

@@ -14,7 +14,7 @@ pub mod token;
 pub const DEVICE_CODE_LEN: usize = 40;
 pub const USER_CODE_LEN: usize = 8;
 pub const RANDOM_CODE_LEN: usize = 32;
-pub const CLIENT_ID_MAX_LEN: usize = 20;
+pub const CLIENT_ID_MAX_LEN: usize = 60;
 
 pub const USER_CODE_ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // No 0, O, I, 1
 

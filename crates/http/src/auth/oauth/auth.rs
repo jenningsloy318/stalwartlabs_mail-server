@@ -49,6 +49,7 @@ pub struct OAuthMetadata {
 pub trait OAuthApiHandler: Sync + Send {
     fn handle_discover_request(
         &self,
+        session: &HttpSessionData,
         account_name: &str,
     ) -> impl Future<Output = trc::Result<HttpResponse>> + Send;
 
@@ -114,7 +115,11 @@ pub enum LoginResponse {
 }
 
 impl OAuthApiHandler for Server {
-    async fn handle_discover_request(&self, account_name: &str) -> trc::Result<HttpResponse> {
+    async fn handle_discover_request(
+        &self,
+        session: &HttpSessionData,
+        account_name: &str,
+    ) -> trc::Result<HttpResponse> {
         let account_name = account_name.trim().to_lowercase();
         if let Some(domain_name) = account_name.try_domain_part()
             && let Some(endpoint) = self
@@ -126,7 +131,7 @@ impl OAuthApiHandler for Server {
                 .no_cache()
                 .into_http_response())
         } else {
-            self.handle_oidc_metadata().await
+            self.handle_oidc_metadata(!session.is_tls).await
         }
     }
 
@@ -155,13 +160,13 @@ impl OAuthApiHandler for Server {
                 if client_id.len() > CLIENT_ID_MAX_LEN {
                     return Err(trc::AuthEvent::Error
                         .into_err()
-                        .details("Client ID is invalid."));
+                        .details("Client ID is too long."));
                 } else if redirect_uri
                     .as_ref()
                     .is_some_and(|uri| uri.starts_with("http://"))
                 {
                     #[cfg(not(feature = "dev_mode"))]
-                    if !self.registry().is_recovery_mode() {
+                    if !self.registry().is_recovery_mode() && code_challenge.is_none() {
                         return Err(trc::AuthEvent::Error
                             .into_err()
                             .details("Redirect URI must be HTTPS."));

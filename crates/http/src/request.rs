@@ -278,7 +278,7 @@ impl ParseHttp for Server {
                     self.is_http_anonymous_request_allowed(session.remote_ip)
                         .await?;
 
-                    return self.handle_oidc_metadata().await;
+                    return self.handle_oidc_metadata(false).await;
                 }
                 ("acme-challenge", &Method::GET) if self.has_acme_http_providers() => {
                     if let Some(token) = path.next() {

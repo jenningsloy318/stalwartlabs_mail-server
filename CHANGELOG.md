@@ -2,9 +2,20 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.16.2] - 2026-05-XX
+
+If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
+
+## Added
+
+## Changed
+- Allow HTTP to be used for configuring the server.
+
+## Fixed
+
 ## [0.16.1] - 2026-04-25
 
-This version includes **multiple breaking changes**. If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
+If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
 ## Added
 - OIDC: Extract username from JWT token.
@@ -30,7 +41,6 @@ This version includes **multiple breaking changes**. If you are upgrading from v
   - Cloudflare: 
     - Fix `CAA` record updates.
     - Check zone subdomains when finding zones
-
 
 ## [0.16.0] - 2026-04-20
 
