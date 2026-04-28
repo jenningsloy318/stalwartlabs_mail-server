@@ -3596,7 +3596,7 @@ impl RegistryJsonPropertyPatch for AzureStore {
 
 impl ObjectImpl for BlobStore {
     const FLAGS: u64 = OBJ_SINGLETON;
-    const VERSION: u8 = 0;
+    const VERSION: u8 = 1;
     const OBJECT: ObjectType = ObjectType::BlobStore;
 
     fn validate(&self, errors: &mut Vec<ValidationError>) -> bool {
@@ -25121,6 +25121,7 @@ impl Pickle for S3Store {
         self.max_retries.pickle(out);
         self.key_prefix.pickle(out);
         self.allow_invalid_certs.pickle(out);
+        self.verify_after_write.pickle(out);
     }
 
     fn unpickle(stream: &mut crate::pickle::PickledStream<'_>) -> Option<Self> {
@@ -25136,6 +25137,9 @@ impl Pickle for S3Store {
         this.max_retries = Pickle::unpickle(stream)?;
         this.key_prefix = Pickle::unpickle(stream)?;
         this.allow_invalid_certs = Pickle::unpickle(stream)?;
+        if stream.version() >= 1 {
+            this.verify_after_write = Pickle::unpickle(stream)?;
+        }
         Some(this)
     }
 }
@@ -25154,13 +25158,14 @@ impl Default for S3Store {
             max_retries: 3u64,
             key_prefix: Default::default(),
             allow_invalid_certs: false,
+            verify_after_write: true,
         }
     }
 }
 
 impl IntoValue for S3Store {
     fn into_value(self) -> JmapValue<'static> {
-        let mut map = jmap_tools::Map::with_capacity(13);
+        let mut map = jmap_tools::Map::with_capacity(14);
         map.insert_unchecked(Property::Region, self.region.into_value());
         map.insert_unchecked(Property::Bucket, self.bucket.into_value());
         map.insert_unchecked(Property::AccessKey, self.access_key.into_value());
@@ -25174,6 +25179,10 @@ impl IntoValue for S3Store {
         map.insert_unchecked(
             Property::AllowInvalidCerts,
             self.allow_invalid_certs.into_value(),
+        );
+        map.insert_unchecked(
+            Property::VerifyAfterWrite,
+            self.verify_after_write.into_value(),
         );
         JmapValue::Object(map)
     }
@@ -25205,6 +25214,7 @@ impl RegistryJsonPropertyPatch for S3Store {
                 .key_prefix
                 .patch(pointer.with_validators(&[StringValidator::Trim]), value),
             Some(Property::AllowInvalidCerts) => self.allow_invalid_certs.patch(pointer, value),
+            Some(Property::VerifyAfterWrite) => self.verify_after_write.patch(pointer, value),
             Some(Property::Type) => Ok(MaybeUnpatched::Unpatched {
                 property: Property::Type,
                 value,

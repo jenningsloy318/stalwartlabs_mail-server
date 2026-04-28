@@ -3370,6 +3370,8 @@ pub struct S3Store {
     pub key_prefix: Option<String>,
     #[serde(rename = "allowInvalidCerts")]
     pub allow_invalid_certs: bool,
+    #[serde(rename = "verifyAfterWrite")]
+    pub verify_after_write: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

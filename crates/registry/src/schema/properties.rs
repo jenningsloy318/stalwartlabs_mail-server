@@ -1119,6 +1119,7 @@ pub enum Property {
     ValidateDomain = 413,
     Value = 492,
     VariableName = 675,
+    VerifyAfterWrite = 874,
     Version = 80,
     Vrfy = 526,
     WaitOnFail = 548,

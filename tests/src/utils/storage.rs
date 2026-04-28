@@ -102,7 +102,7 @@ fn build_blob_store(typ: BlobStoreType, path: &str) -> BlobStore {
     match typ {
         BlobStoreType::S3 => BlobStore::S3(S3Store {
             access_key: "minioadmin".to_string().into(),
-            bucket: "tmp".into(),
+            bucket: "stalwart".into(),
             region: S3StoreRegion::Custom(S3StoreCustomRegion {
                 custom_endpoint: "http://localhost:9000".into(),
                 custom_region: "eu-central-1".into(),

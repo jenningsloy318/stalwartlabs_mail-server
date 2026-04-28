@@ -1,12 +1,12 @@
 [package]
 name = "tests"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2024"
 
 [features]
 #default = ["sqlite", "postgres", "mysql", "rocks", "s3", "redis", "nats", "azure", "foundationdb"]
 #default = ["sqlite", "postgres", "mysql", "rocks", "s3", "redis", "foundationdb"]
-default = ["rocks"]
+default = ["rocks", "s3"]
 sqlite = ["store/sqlite", "directory/sqlite"]
 foundationdb = ["store/foundation", "common/foundation"]
 postgres = ["store/postgres", "directory/postgres"]

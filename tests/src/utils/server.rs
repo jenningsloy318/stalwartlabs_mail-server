@@ -256,6 +256,8 @@ impl TestServerBuilder {
     }
 
     pub async fn build_with_opts(mut self, init_store: bool) -> TestServer {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
         if init_store {
             // Register stores from environment
             self.bootstrap.registry.insert_stores_from_env().await;

@@ -224,20 +224,27 @@ impl Server {
 
     pub async fn password_hash(&self, account_id: u32) -> trc::Result<String> {
         if account_id != u32::MAX {
-            self.registry()
+            let Some(account) = self
+                .registry()
                 .object::<Account>(account_id.into())
                 .await
                 .caused_by(trc::location!())?
-                .and_then(|account| {
-                    account
-                        .into_user()
-                        .and_then(|account| account.into_password())
-                })
-                .ok_or_else(|| {
-                    trc::AuthEvent::Error
-                        .into_err()
-                        .details("Account no longer exists")
-                })
+            else {
+                return Err(trc::AuthEvent::Error
+                    .into_err()
+                    .details("Account no longer exists"));
+            };
+            let Some(account) = account.into_user() else {
+                return Err(trc::AuthEvent::Error
+                    .into_err()
+                    .details("Account is not a user"));
+            };
+            account.into_password().ok_or_else(|| {
+                trc::AuthEvent::Error.into_err().details(concat!(
+                    "Account does not have a password. ",
+                    "If you are using an external directory, make sure to set the password attribute."
+                ))
+            })
         } else if let Some((_, secret)) = self.registry().recovery_admin() {
             Ok(secret.into())
         } else {

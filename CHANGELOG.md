@@ -2,16 +2,24 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.16.2] - 2026-05-XX
+## [0.16.2] - 2026-04-28
 
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
 ## Added
+- OIDC: Fallback to `userinfo` endpoint when JWT token does not contain an email claim.
+- S3: `verifyAfterWrite` option to verify that objects have persisted after writing.
 
 ## Changed
 - Allow HTTP to be used for configuring the server.
 
 ## Fixed
+- LDAP: Generate valid `credentialId` when there are password changes.
+- TLS: Disable cipher suited option disables wrong ciphers.
+- DNS Updater:
+  - BunnyDNS: Use subdomain as name of record instead of FQDN.
+  - RFC2136: Chunk TXT records.
+- Skip invalid entries in log files.
 
 ## [0.16.1] - 2026-04-25
 

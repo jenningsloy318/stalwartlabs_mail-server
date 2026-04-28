@@ -213,14 +213,10 @@ impl Listeners {
                 let mut disabled_ciphers: Vec<SupportedCipherSuite> = Vec::new();
                 for disabled in listener.tls_disable_cipher_suites {
                     disabled_ciphers.push(match disabled {
-                        TlsCipherSuite::Tls13Aes256GcmSha384 => {
-                            TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-                        }
-                        TlsCipherSuite::Tls13Aes128GcmSha256 => {
-                            TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-                        }
+                        TlsCipherSuite::Tls13Aes256GcmSha384 => TLS13_AES_256_GCM_SHA384,
+                        TlsCipherSuite::Tls13Aes128GcmSha256 => TLS13_AES_128_GCM_SHA256,
                         TlsCipherSuite::Tls13Chacha20Poly1305Sha256 => {
-                            TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+                            TLS13_CHACHA20_POLY1305_SHA256
                         }
                         TlsCipherSuite::TlsEcdheEcdsaWithAes256GcmSha384 => {
                             TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
