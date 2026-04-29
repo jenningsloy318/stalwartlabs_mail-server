@@ -57,7 +57,15 @@ impl OpenIdHandler for Server {
 
     async fn handle_oidc_metadata(&self, strip_base_url: bool) -> trc::Result<HttpResponse> {
         let base_url = if strip_base_url {
-            ""
+            #[cfg(feature = "dev_mode")]
+            {
+                "http://127.0.0.1:8080"
+            }
+
+            #[cfg(not(feature = "dev_mode"))]
+            {
+                ""
+            }
         } else {
             &self.core.network.http.url_https
         };

@@ -343,11 +343,12 @@ impl RegistrySet for Server {
                     };
 
                     if is_create
-                        || (is_singleton
-                            && value
-                                .as_object()
-                                .unwrap()
-                                .contains_key(&Key::Property(Property::Type)))
+                        || value
+                            .as_object()
+                            .unwrap()
+                            .get(&Key::Property(Property::Type))
+                            .and_then(|v| v.as_str())
+                            .is_some_and(|t| new_object.object_variant().is_some_and(|v| v != t))
                     {
                         // Patch object
                         match new_object.patch(
@@ -383,6 +384,9 @@ impl RegistrySet for Server {
                     } else {
                         for (key, value) in value.into_expanded_object() {
                             let ptr = match key {
+                                Key::Property(Property::Type) => {
+                                    continue;
+                                }
                                 Key::Property(prop) => {
                                     JsonPointer::new(vec![JsonPointerItem::Key(Key::Property(
                                         prop,

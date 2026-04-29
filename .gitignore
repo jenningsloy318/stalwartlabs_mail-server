@@ -1,9 +1,8 @@
 /target
-.vscode
-.idea
 *.failed
 *_failed
 run.sh
-.ignore
-.data
-.DS_Store
+.*
+!.gitignore
+!.gitattributes
+

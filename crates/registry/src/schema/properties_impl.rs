@@ -5219,6 +5219,35 @@ impl Object {
         }
     }
 
+    pub fn object_variant(&self) -> Option<&'static str> {
+        match &self.inner {
+            ObjectInner::Account(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::Action(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::ArchivedItem(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::Asn(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::BlobStore(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::Coordinator(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::DataStore(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::Directory(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::DkimSignature(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::DnsResolver(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::DnsServer(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::InMemoryStore(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::Metric(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::MetricsStore(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::MtaRoute(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::SearchStore(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::SpamDnsblServer(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::SpamLlm(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::SpamRule(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::SpamTag(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::Task(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::Tracer(obj) => Some(obj.object_type().as_str()),
+            ObjectInner::TracingStore(obj) => Some(obj.object_type().as_str()),
+            _ => None,
+        }
+    }
+
     pub fn validate(&self, errors: &mut Vec<ValidationError>) -> bool {
         match &self.inner {
             ObjectInner::Account(obj) => obj.validate(errors),

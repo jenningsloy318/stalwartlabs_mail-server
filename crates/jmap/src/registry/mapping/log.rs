@@ -294,7 +294,7 @@ fn log_from_line(line: &str) -> Option<Log> {
 
     Some(Log {
         timestamp: UTCDateTime::from_timestamp(timestamp.timestamp()),
-        level: TracingLevel::parse(&level.to_ascii_uppercase()).unwrap_or(TracingLevel::Info),
+        level: TracingLevel::parse(&level.to_ascii_lowercase()).unwrap_or(TracingLevel::Info),
         event: EventType::parse(event_id)?,
         details: details.trim().to_string(),
     })

@@ -115,11 +115,11 @@ impl Server {
             };
             match directory.recipient(address.as_ref()).await? {
                 Recipient::Account(account) => {
-                    self.synchronize_account(account).await?;
+                    Box::pin(self.synchronize_account(account)).await?;
                     return Ok(RcptResolution::Accept);
                 }
                 Recipient::Group(group) => {
-                    self.synchronize_group(group).await?;
+                    Box::pin(self.synchronize_group(group)).await?;
                     return Ok(RcptResolution::Accept);
                 }
                 Recipient::Invalid => {}

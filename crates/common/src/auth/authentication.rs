@@ -458,7 +458,7 @@ impl Server {
         account: directory::Account,
         remote_ip: IpAddr,
     ) -> trc::Result<AccessToken> {
-        let account = self.synchronize_account(account).await?;
+        let account = Box::pin(self.synchronize_account(account)).await?;
         self.access_token_from_account(account.id, account.account)
             .await
             .and_then(|token| AccessToken::new(token, remote_ip))

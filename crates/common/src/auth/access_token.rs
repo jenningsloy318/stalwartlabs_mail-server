@@ -840,6 +840,9 @@ fn hash_account(account: &Account) -> u64 {
                 credential.expires_at.hash(&mut s);
                 hash_credential_permissions(&mut s, &credential.permissions);
             }
+            for group_id in account.member_group_ids.iter() {
+                group_id.hash(&mut s);
+            }
         }
         Account::Group(account) => {
             account.member_tenant_id.hash(&mut s);

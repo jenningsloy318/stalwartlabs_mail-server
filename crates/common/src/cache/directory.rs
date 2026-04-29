@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-SEL
  */
 
-use crate::{Server, auth::DomainCache, ipc::BroadcastEvent};
+use crate::{
+    Server, auth::DomainCache, cache::invalidate::CacheInvalidationBuilder, ipc::BroadcastEvent,
+};
 use registry::{
     schema::{
         prelude::{Object, ObjectType},
@@ -126,10 +128,18 @@ impl Server {
                         .await
                         .caused_by(trc::location!())?
                     {
-                        RegistryWriteResult::Success(id) => Ok(AccountWithId {
-                            id: id.document_id(),
-                            account: updated_account.into(),
-                        }),
+                        RegistryWriteResult::Success(id) => {
+                            let mut invalidator = CacheInvalidationBuilder::default();
+                            invalidator.process_update(id, &current_account, &updated_account);
+                            self.invalidate_caches(invalidator)
+                                .await
+                                .caused_by(trc::location!())?;
+
+                            Ok(AccountWithId {
+                                id: id.document_id(),
+                                account: updated_account.into(),
+                            })
+                        }
                         failure => Err(trc::AuthEvent::Error
                             .into_err()
                             .caused_by(trc::location!())
@@ -287,17 +297,26 @@ impl Server {
                 }
 
                 if has_changes {
+                    let updated_account = Object::from(Account::Group(updated_account));
                     match self
                         .registry()
                         .write(RegistryWrite::update(
                             Id::from(account_id),
-                            &Object::from(Account::Group(updated_account)),
+                            &updated_account,
                             &current_account,
                         ))
                         .await
                         .caused_by(trc::location!())?
                     {
-                        RegistryWriteResult::Success(id) => Ok(id.document_id()),
+                        RegistryWriteResult::Success(id) => {
+                            let mut invalidator = CacheInvalidationBuilder::default();
+                            invalidator.process_update(id, &current_account, &updated_account);
+                            self.invalidate_caches(invalidator)
+                                .await
+                                .caused_by(trc::location!())?;
+
+                            Ok(id.document_id())
+                        }
                         failure => Err(trc::AuthEvent::Error
                             .into_err()
                             .caused_by(trc::location!())
