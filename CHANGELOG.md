@@ -2,18 +2,29 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.16.3] - 2026-04-XX
+## [0.16.3] - 2026-04-30
 
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
 ## Added
 
 ## Changed
+- Replaced `STALWART_HTTPS_PORT` with `STALWART_PUBLIC_URL`.
+- App Passwords now begin with `app_` instead of `app ` to avoid issues with some clients that do not support spaces in passwords.
 
 ## Fixed
-- Directory: Invalidate caches when group memberships change on an external directory.
+- Directory: 
+  - Invalidate caches when group memberships change on an external directory.
+  - OIDC: errors instead of "failed to decode token".
+  - OIDC: Recovery admin access.
+  - User impersonation.
+- Tasks:
+  - Delete locked tasks.
+  - Queue pagination by anchor.
 - Log viewer: All events show as `INFO`.
+- Registry: Allow changing object variants.
 - Node id renewal.
+- DNS Updater: Fix Route53 serialization format.
 
 ## [0.16.2] - 2026-04-28
 

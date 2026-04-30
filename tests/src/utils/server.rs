@@ -317,7 +317,7 @@ impl TestServerBuilder {
         self.bootstrap.registry = self
             .bootstrap
             .registry
-            .clone_with_port(self.http_listener_port);
+            .clone_with_public_url(format!("https://127.0.0.1:{}", self.http_listener_port));
 
         if init_store {
             // Add safe defaults if missing

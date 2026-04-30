@@ -434,8 +434,8 @@ impl Http {
 
         Http {
             url_https: if !bp.registry.is_recovery_mode() {
-                if let Some(port) = bp.registry.https_port() {
-                    format!("https://{server_name}:{port}")
+                if let Some(url) = bp.registry.public_url() {
+                    url.to_string()
                 } else {
                     format!("https://{server_name}")
                 }
