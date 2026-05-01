@@ -252,34 +252,41 @@ impl ManagementApi for Server {
     ) -> trc::Result<AccessToken> {
         let params = UrlParams::new(req.uri().query());
         if let Some(token) = params.get("token") {
-            // SPDX-SnippetBegin
-            // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
-            // SPDX-License-Identifier: LicenseRef-SEL
-            #[cfg(feature = "enterprise")]
-            if self.core.is_enterprise_edition() {
-                let path = req.uri().path();
-                let (grant_type, permissions) = if path.starts_with("/api/live/tracing") {
-                    (GrantType::LiveTracing, Permission::LiveTracing)
-                } else if path.starts_with("/api/live/metrics") {
-                    (GrantType::LiveMetrics, Permission::LiveMetrics)
-                } else if path.starts_with("/api/live/delivery") {
-                    (GrantType::LiveDelivery, Permission::LiveDeliveryTest)
-                } else {
-                    return Err(trc::ResourceEvent::NotFound.into_err());
-                };
+            let path = req.uri().path();
+            let grant = if path.starts_with("/api/live/delivery") {
+                Some((GrantType::LiveDelivery, Permission::LiveDeliveryTest))
+            } else {
+                // SPDX-SnippetBegin
+                // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>
+                // SPDX-License-Identifier: LicenseRef-SEL
+                #[cfg(feature = "enterprise")]
+                {
+                    if self.core.is_enterprise_edition() {
+                        if path.starts_with("/api/live/tracing") {
+                            Some((GrantType::LiveTracing, Permission::LiveTracing))
+                        } else if path.starts_with("/api/live/metrics") {
+                            Some((GrantType::LiveMetrics, Permission::LiveMetrics))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                // SPDX-SnippetEnd
+                #[cfg(not(feature = "enterprise"))]
+                {
+                    None
+                }
+            };
+
+            if let Some((grant_type, permission)) = grant {
                 self.validate_access_token(grant_type.into(), token)
                     .await
                     .map(|token_info| {
-                        AccessToken::from_permissions(token_info.account_id, [permissions])
+                        AccessToken::from_permissions(token_info.account_id, [permission])
                     })
             } else {
-                self.authenticate_headers(req, session)
-                    .await
-                    .map(|(_, token)| token)
-            }
-            // SPDX-SnippetEnd
-            #[cfg(not(feature = "enterprise"))]
-            {
                 self.authenticate_headers(req, session)
                     .await
                     .map(|(_, token)| token)

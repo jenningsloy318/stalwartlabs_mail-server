@@ -84,7 +84,8 @@ pub(crate) async fn account_set(
                     if let Key::Property(
                         property @ (Property::EncryptionAtRest
                         | Property::Locale
-                        | Property::Description),
+                        | Property::Description
+                        | Property::TimeZone),
                     ) = key
                     {
                         let ptr =
