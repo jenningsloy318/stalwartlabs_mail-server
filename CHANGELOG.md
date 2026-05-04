@@ -14,6 +14,15 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
 - Live tracing in community and OSS versions.
 - Timezone changes from the `AccountSettings` object return `invalidProperties`.
 - `mail-parser` panic with certain messages containing corrupted attachments.
+- Pagination by anchor for queued messages, tasks and metrics.
+- Spam filter: Use original instead of rewritten `RCPT` on checks.
+- JMAP:
+  - References in nested objects not resolved.
+  - `AddressBook/query` fetches wrong resources.
+- Import tool fails to restore registry entries.
+- FDB: Allow multiple FoundationDB instances in the same process.
+- Autoconfig: Return `%EMAILADDRESS%` when no email address is provided.
+- Quota: Include Sieve scripts in quota recalculations.
 
 ## [0.16.3] - 2026-04-30
 
