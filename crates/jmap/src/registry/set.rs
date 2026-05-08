@@ -656,9 +656,8 @@ impl RegistrySet for Server {
                                         .await
                                         .caused_by(trc::location!())?
                                     {
-                                        cache_invalidator.invalidate(
-                                            CacheInvalidation::AccessToken(sharee_id),
-                                        );
+                                        cache_invalidator
+                                            .invalidate(CacheInvalidation::AccessToken(sharee_id));
                                     }
 
                                     schedule_account_destruction(set.server, id, account).await?;
