@@ -16,13 +16,16 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
 - JMAP: 
   - Patching ids containing digits in JSON Pointers fails.
   - Patching nested objects with `null` values fails.
-- SQL directory: Return `Failed` instead of `Error` when the query returns no results.
+- External directories:
+  - SQL: Return `Failed` instead of `Error` when the query returns no results.
+  - LDAP: Impersonation fails when the user has not logged in before.
 - Network: Attempt binding to IPv4 when binding to IPv6 fails with `EAFNOSUPPORT` error.
 - Bootstrap: Timeout after 30 seconds when probing the data store.
 - HTTP: Use permissive CORS headers for `.well-known` endpoints.
 - ACME: 
   - Include apex domains when requesting certificates for subdomains.
   - Use the public suffix list to determine the zone name when no origin is provided.
+- MTA: Process reports using original `RCPT` before rewriting.
 
 ## [0.16.4] - 2026-05-05
 
