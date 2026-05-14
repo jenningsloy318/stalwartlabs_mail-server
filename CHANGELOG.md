@@ -7,13 +7,16 @@ All notable changes to this project will be documented in this file. This projec
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
 ## Added
+- Dns updater: Log DNS record types and values.
 
 ## Changed
+- Accept password hashes with `$` or `{` prefixes as secure secrets.
 
 ## Fixed
 - DAV: `acl-principal-prop-set` REPORT enforced the wrong privilege.
 - JMAP: `Thread/get` did not filter by per-mailbox ACLs on shared accounts.
 - RFC2136 TSIG: regression related to multiplexer.
+- IMAP: `UID FETCH N:*` could miss messages moved into a SELECTed mailbox by another connection.
 
 ## [0.16.5] - 2026-05-11
 
