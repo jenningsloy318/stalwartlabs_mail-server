@@ -543,12 +543,9 @@ fn map_directory(directory: &DirectoryBootstrap) -> Option<Directory> {
 
 fn map_dns_server(dns_server: &DnsServerBootstrap) -> Option<registry::schema::structs::DnsServer> {
     match dns_server {
-        DnsServerBootstrap::Manual => None,
+        DnsServerBootstrap::Manual | DnsServerBootstrap::Deprecated1 => None,
         DnsServerBootstrap::Tsig(dns_server_tsig) => {
             DnsServer::Tsig(dns_server_tsig.clone()).into()
-        }
-        DnsServerBootstrap::Sig0(dns_server_sig0) => {
-            DnsServer::Sig0(dns_server_sig0.clone()).into()
         }
         DnsServerBootstrap::Cloudflare(dns_server_cloudflare) => {
             DnsServer::Cloudflare(dns_server_cloudflare.clone()).into()
@@ -578,6 +575,64 @@ fn map_dns_server(dns_server: &DnsServerBootstrap) -> Option<registry::schema::s
         DnsServerBootstrap::GoogleCloudDns(dns_server_google_cloud_dns) => {
             DnsServer::GoogleCloudDns(dns_server_google_cloud_dns.clone()).into()
         }
+        DnsServerBootstrap::Alidns(inner) => DnsServer::Alidns(inner.clone()).into(),
+        DnsServerBootstrap::ArvanCloud(inner) => DnsServer::ArvanCloud(inner.clone()).into(),
+        DnsServerBootstrap::Autodns(inner) => DnsServer::Autodns(inner.clone()).into(),
+        DnsServerBootstrap::AzureDns(inner) => DnsServer::AzureDns(inner.clone()).into(),
+        DnsServerBootstrap::BaiduCloud(inner) => DnsServer::BaiduCloud(inner.clone()).into(),
+        DnsServerBootstrap::BluecatV2(inner) => DnsServer::BluecatV2(inner.clone()).into(),
+        DnsServerBootstrap::ClouDns(inner) => DnsServer::ClouDns(inner.clone()).into(),
+        DnsServerBootstrap::Constellix(inner) => DnsServer::Constellix(inner.clone()).into(),
+        DnsServerBootstrap::Cpanel(inner) => DnsServer::Cpanel(inner.clone()).into(),
+        DnsServerBootstrap::Ddnss(inner) => DnsServer::Ddnss(inner.clone()).into(),
+        DnsServerBootstrap::DnsMadeEasy(inner) => DnsServer::DnsMadeEasy(inner.clone()).into(),
+        DnsServerBootstrap::Domeneshop(inner) => DnsServer::Domeneshop(inner.clone()).into(),
+        DnsServerBootstrap::Dreamhost(inner) => DnsServer::Dreamhost(inner.clone()).into(),
+        DnsServerBootstrap::DuckDns(inner) => DnsServer::DuckDns(inner.clone()).into(),
+        DnsServerBootstrap::Dynu(inner) => DnsServer::Dynu(inner.clone()).into(),
+        DnsServerBootstrap::EasyDns(inner) => DnsServer::EasyDns(inner.clone()).into(),
+        DnsServerBootstrap::EdgeDns(inner) => DnsServer::EdgeDns(inner.clone()).into(),
+        DnsServerBootstrap::Exoscale(inner) => DnsServer::Exoscale(inner.clone()).into(),
+        DnsServerBootstrap::FreeMyIp(inner) => DnsServer::FreeMyIp(inner.clone()).into(),
+        DnsServerBootstrap::GandiV5(inner) => DnsServer::GandiV5(inner.clone()).into(),
+        DnsServerBootstrap::Gcore(inner) => DnsServer::Gcore(inner.clone()).into(),
+        DnsServerBootstrap::Glesys(inner) => DnsServer::Glesys(inner.clone()).into(),
+        DnsServerBootstrap::Godaddy(inner) => DnsServer::Godaddy(inner.clone()).into(),
+        DnsServerBootstrap::Hetzner(inner) => DnsServer::Hetzner(inner.clone()).into(),
+        DnsServerBootstrap::HostingDe(inner) => DnsServer::HostingDe(inner.clone()).into(),
+        DnsServerBootstrap::Hostinger(inner) => DnsServer::Hostinger(inner.clone()).into(),
+        DnsServerBootstrap::HuaweiCloud(inner) => DnsServer::HuaweiCloud(inner.clone()).into(),
+        DnsServerBootstrap::Hurricane(inner) => DnsServer::Hurricane(inner.clone()).into(),
+        DnsServerBootstrap::IbmCloud(inner) => DnsServer::IbmCloud(inner.clone()).into(),
+        DnsServerBootstrap::Infoblox(inner) => DnsServer::Infoblox(inner.clone()).into(),
+        DnsServerBootstrap::Infomaniak(inner) => DnsServer::Infomaniak(inner.clone()).into(),
+        DnsServerBootstrap::Inwx(inner) => DnsServer::Inwx(inner.clone()).into(),
+        DnsServerBootstrap::Ionos(inner) => DnsServer::Ionos(inner.clone()).into(),
+        DnsServerBootstrap::Ipv64(inner) => DnsServer::Ipv64(inner.clone()).into(),
+        DnsServerBootstrap::Joker(inner) => DnsServer::Joker(inner.clone()).into(),
+        DnsServerBootstrap::Lightsail(inner) => DnsServer::Lightsail(inner.clone()).into(),
+        DnsServerBootstrap::Linode(inner) => DnsServer::Linode(inner.clone()).into(),
+        DnsServerBootstrap::LuaDns(inner) => DnsServer::LuaDns(inner.clone()).into(),
+        DnsServerBootstrap::MythicBeasts(inner) => DnsServer::MythicBeasts(inner.clone()).into(),
+        DnsServerBootstrap::Namecheap(inner) => DnsServer::Namecheap(inner.clone()).into(),
+        DnsServerBootstrap::NameDotCom(inner) => DnsServer::NameDotCom(inner.clone()).into(),
+        DnsServerBootstrap::NameSilo(inner) => DnsServer::NameSilo(inner.clone()).into(),
+        DnsServerBootstrap::Netcup(inner) => DnsServer::Netcup(inner.clone()).into(),
+        DnsServerBootstrap::Netlify(inner) => DnsServer::Netlify(inner.clone()).into(),
+        DnsServerBootstrap::Nifcloud(inner) => DnsServer::Nifcloud(inner.clone()).into(),
+        DnsServerBootstrap::Ns1(inner) => DnsServer::Ns1(inner.clone()).into(),
+        DnsServerBootstrap::OracleCloud(inner) => DnsServer::OracleCloud(inner.clone()).into(),
+        DnsServerBootstrap::Plesk(inner) => DnsServer::Plesk(inner.clone()).into(),
+        DnsServerBootstrap::Safedns(inner) => DnsServer::Safedns(inner.clone()).into(),
+        DnsServerBootstrap::Scaleway(inner) => DnsServer::Scaleway(inner.clone()).into(),
+        DnsServerBootstrap::TencentCloud(inner) => DnsServer::TencentCloud(inner.clone()).into(),
+        DnsServerBootstrap::Transip(inner) => DnsServer::Transip(inner.clone()).into(),
+        DnsServerBootstrap::UltraDns(inner) => DnsServer::UltraDns(inner.clone()).into(),
+        DnsServerBootstrap::Vercel(inner) => DnsServer::Vercel(inner.clone()).into(),
+        DnsServerBootstrap::Volcengine(inner) => DnsServer::Volcengine(inner.clone()).into(),
+        DnsServerBootstrap::Vultr(inner) => DnsServer::Vultr(inner.clone()).into(),
+        DnsServerBootstrap::WebSupport(inner) => DnsServer::WebSupport(inner.clone()).into(),
+        DnsServerBootstrap::YandexCloud(inner) => DnsServer::YandexCloud(inner.clone()).into(),
     }
 }
 

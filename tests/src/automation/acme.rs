@@ -139,9 +139,8 @@ pub async fn test(test: &TestServer) {
     // Create test Pebble and In Memory DNS servers
     let pebble_dns_id = account
         .registry_create_object(DnsServer::Cloudflare(DnsServerCloudflare {
-            email: "test@pebble.org".to_string().into(),
             secret: SecretKey::Value(SecretKeyValue {
-                secret: "secret".into(),
+                secret: "test@pebble.org".into(),
             }),
             description: "Pebble DNS server".to_string(),
             ..Default::default()
@@ -149,9 +148,8 @@ pub async fn test(test: &TestServer) {
         .await;
     let in_memory_dns_id = account
         .registry_create_object(DnsServer::Cloudflare(DnsServerCloudflare {
-            email: "test@memory.org".to_string().into(),
             secret: SecretKey::Value(SecretKeyValue {
-                secret: "secret".into(),
+                secret: "test@memory.org".into(),
             }),
             description: "In-memory DNS server".to_string(),
             ..Default::default()

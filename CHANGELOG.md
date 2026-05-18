@@ -7,7 +7,66 @@ All notable changes to this project will be documented in this file. This projec
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
 ## Added
-- Dns updater: Log DNS record types and values.
+- Added 58 new DNS provider integrations:
+   - Akamai Edge DNS
+   - Alibaba Cloud DNS
+   - ArvanCloud
+   - AutoDNS
+   - AWS Lightsail
+   - Azure DNS
+   - Baidu Cloud DNS
+   - BlueCat Address Manager
+   - ClouDNS
+   - Constellix
+   - cPanel
+   - DDNSS.de
+   - DNS Made Easy
+   - Domeneshop
+   - DreamHost
+   - DuckDNS
+   - Dynu
+   - EasyDNS
+   - Exoscale
+   - FreeMyIP
+   - Gandi v5
+   - Gcore
+   - GleSYS
+   - GoDaddy
+   - Hetzner DNS
+   - hosting.de
+   - Hostinger
+   - Huawei Cloud DNS
+   - Hurricane Electric
+   - IBM Cloud (SoftLayer)
+   - Infoblox NIOS
+   - Infomaniak
+   - INWX
+   - IONOS
+   - IPv64
+   - Joker
+   - Linode
+   - LuaDNS
+   - Mythic Beasts
+   - Name.com
+   - Namecheap
+   - NameSilo
+   - netcup
+   - Netlify
+   - Nifcloud
+   - NS1
+   - Oracle Cloud DNS
+   - Plesk
+   - SafeDNS
+   - Scaleway
+   - Tencent Cloud DNSPod
+   - TransIP
+   - UltraDNS
+   - Vercel
+   - Volcano Engine
+   - Vultr
+   - Websupport
+   - Yandex Cloud DNS
+- DNS updater: Log DNS record types and values.
 
 ## Changed
 - Bump JMAP File Storage to [draft-ietf-jmap-filenode-14](https://datatracker.ietf.org/doc/html/draft-ietf-jmap-filenode-14).
