@@ -44,7 +44,7 @@ use std::{
     borrow::Cow,
     time::{Instant, SystemTime},
 };
-use trc::SmtpEvent;
+use trc::{SmtpEvent, SpamEvent};
 use utils::DomainPart;
 
 impl<T: SessionStream> Session<T> {
@@ -453,10 +453,24 @@ impl<T: SessionStream> Session<T> {
                     }
                 }
                 SpamFilterAction::Discard => {
+                    trc::event!(
+                        Spam(SpamEvent::Classify),
+                        SpanId = self.data.session_id,
+                        Result = "discard",
+                        Reason = "Message discarded due to excessive spam score.",
+                    );
+
                     self.data.messages_sent += 1;
                     return (b"250 2.0.0 Message queued for delivery.\r\n"[..]).into();
                 }
                 SpamFilterAction::Reject => {
+                    trc::event!(
+                        Spam(SpamEvent::Classify),
+                        SpanId = self.data.session_id,
+                        Result = "reject",
+                        Reason = "Message rejected due to excessive spam score.",
+                    );
+
                     self.data.messages_sent += 1;
                     return (b"550 5.7.1 Message rejected due to excessive spam score.\r\n"[..])
                         .into();

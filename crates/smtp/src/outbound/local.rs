@@ -33,6 +33,7 @@ impl MessageWrapper {
             let rcpt_addr = rcpt.address();
             recipients.push(IngestRecipient {
                 address: rcpt_addr.to_lowercase(),
+                orcpt: rcpt.orcpt.as_ref().map(|orcpt| orcpt.to_string()),
                 is_spam: rcpt.flags & RCPT_SPAM_PAYLOAD != 0,
             });
             pending_recipients.push((rcpt_idx, rcpt_addr));

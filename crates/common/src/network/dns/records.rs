@@ -78,7 +78,7 @@ impl Server {
                         .collect::<AHashSet<_>>();
 
                     for mx in mxs {
-                        if mx.ends_with(&domain_name_suffix) || mx == domain_name {
+                        if mx.ends_with(&domain_name_suffix) {
                             records.push(NamedDnsRecord {
                                 name: format!("{mx}."),
                                 record: DnsRecord::TXT("v=spf1 a -all".to_string()),

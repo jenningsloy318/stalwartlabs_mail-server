@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import re
 import sys
 import urllib.parse
@@ -637,6 +638,57 @@ def secret_text(value: str | None) -> dict[str, Any]:
         return {"@type": "None"}
     return {"@type": "Text", "secret": value}
 
+_MACRO_RE = re.compile(r"%\{(cfg|env|file):([^}]*)\}%")
+
+def resolve_macros(
+    value: str | None,
+    settings: dict[str, str],
+    _seen: frozenset[str] = frozenset(),
+) -> tuple[str | None, list[str]]:
+    if value is None or "%{" not in value:
+        return value, []
+    errors: list[str] = []
+
+    def repl(m: "re.Match[str]") -> str:
+        kind = m.group(1)
+        arg = m.group(2).strip()
+        if kind == "cfg":
+            if arg in _seen:
+                errors.append(f"circular %{{cfg:{arg}}}% reference")
+                return ""
+            raw = settings.get(arg)
+            if raw is None:
+                errors.append(f"unknown setting referenced by %{{cfg:{arg}}}%")
+                return ""
+            nested, nested_errors = resolve_macros(
+                raw, settings, _seen | {arg}
+            )
+            errors.extend(nested_errors)
+            return nested or ""
+        if kind == "env":
+            env = os.environ.get(arg)
+            if env is None:
+                errors.append(
+                    f"environment variable {arg!r} (from %{{env:{arg}}}%) "
+                    f"is not set"
+                )
+                return ""
+            return env
+        try:
+            with open(arg, "r", encoding="utf-8") as fh:
+                return fh.read()
+        except OSError as exc:
+            errors.append(f"cannot read file {arg!r} (from %{{file:...}}%): {exc}")
+            return ""
+
+    prev = value
+    for _ in range(8):
+        cur = _MACRO_RE.sub(repl, prev)
+        if cur == prev:
+            break
+        prev = cur
+    return prev, errors
+
 _REDIS_PROTOCOL_MAP = {
     "resp2": "resp2",
     "resp3": "resp3",
@@ -1158,11 +1210,30 @@ class Converter:
             canon = sub.get("canonicalization", "relaxed/relaxed").strip().lower()
             if not canon:
                 canon = "relaxed/relaxed"
+            private_key, key_errors = resolve_macros(
+                sub.get("private-key"), self.settings
+            )
+            if private_key is not None:
+                private_key = private_key.strip()
+            if key_errors:
+                print(
+                    f"warning: skipping DKIM signature {sid!r}: could not "
+                    f"resolve private-key: {'; '.join(key_errors)}",
+                    file=sys.stderr,
+                )
+                continue
+            if not private_key or "%{" in private_key:
+                print(
+                    f"warning: skipping DKIM signature {sid!r}: private-key is "
+                    f"empty or still contains an unresolved macro",
+                    file=sys.stderr,
+                )
+                continue
             body: dict[str, Any] = {
                 "@type": tag,
                 "canonicalization": canon,
                 "domainId": "#" + dom_cid,
-                "privateKey": secret_text(sub.get("private-key")),
+                "privateKey": secret_text(private_key),
                 "selector": selector,
             }
             t_cid = self.domain_cid_to_tenant_cid.get(dom_cid)
@@ -1687,8 +1758,21 @@ class Converter:
         for sid, sub in sorted(
             build_sub_trees(self.settings, "certificate", "cert").items()
         ):
-            cert = sub.get("cert", "").strip()
-            key = sub.get("private-key", "").strip()
+            cert, cert_errors = resolve_macros(
+                sub.get("cert", ""), self.settings
+            )
+            key, key_errors = resolve_macros(
+                sub.get("private-key", ""), self.settings
+            )
+            cert = (cert or "").strip()
+            key = (key or "").strip()
+            if cert_errors or key_errors:
+                print(
+                    f"warning: skipping certificate.{sid}: could not resolve "
+                    f"value: {'; '.join(cert_errors + key_errors)}",
+                    file=sys.stderr,
+                )
+                continue
             if not cert or not key:
                 print(
                     f"warning: skipping certificate.{sid}: "

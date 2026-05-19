@@ -129,6 +129,9 @@ impl SieveScriptIngest for Server {
         // Set envelope
         instance.set_envelope(Envelope::From, envelope_from);
         instance.set_envelope(Envelope::To, envelope_to.address.as_str());
+        if let Some(orcpt) = &envelope_to.orcpt {
+            instance.set_envelope(Envelope::Orcpt, orcpt.as_str());
+        }
         instance.set_spam_status(if envelope_to.is_spam {
             SpamStatus::Spam
         } else {

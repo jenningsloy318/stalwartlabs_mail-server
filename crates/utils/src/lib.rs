@@ -275,9 +275,7 @@ pub fn sanitize_email(email: &str) -> Option<String> {
         last_ch = ch;
     }
 
-    if last_ch.is_alphanumeric()
-        && psl::domain(result.as_bytes()).is_some_and(|d| d.suffix().typ().is_some())
-    {
+    if last_ch.is_alphanumeric() && is_valid_domain(&result) {
         Some(result)
     } else {
         None

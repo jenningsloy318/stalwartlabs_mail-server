@@ -17,7 +17,7 @@ use registry::{
         prelude::ObjectType,
         structs::{
             AcmeProvider, Certificate, CertificateManagement, DnsManagement, Domain, PublicText,
-            PublicTextValue, SecretText, SecretTextValue, Task, TaskDnsManagement,
+            PublicTextValue, SecretText, SecretTextValue, SystemSettings, Task, TaskDnsManagement,
             TaskDomainManagement, TaskStatus,
         },
     },
@@ -91,6 +91,8 @@ impl Server {
             )
             .await?;
         let parsed_cert = ParsedCert::parse(&pem_cert.certificate)?;
+        let mut new_sans = parsed_cert.sans.clone();
+        new_sans.sort();
         let certificate = Certificate {
             private_key: SecretText::Text(SecretTextValue {
                 secret: pem_cert.private_key,
@@ -118,6 +120,43 @@ impl Server {
             .await?
         {
             RegistryWriteResult::Success(id) => {
+                // Repoint the default certificate to the renewed object when it
+                // tracks the same SAN set, so its id does not go stale
+                if let Some(old) = self
+                    .registry()
+                    .get(ObjectType::SystemSettings.singleton())
+                    .await?
+                {
+                    let mut settings = SystemSettings::from(old.clone());
+                    if let Some(default_id) = settings.default_certificate_id
+                        && let Some(default_cert) =
+                            self.registry().object::<Certificate>(default_id).await?
+                    {
+                        let mut default_sans =
+                            default_cert.subject_alternative_names.clone().into_inner();
+                        default_sans.sort();
+                        if default_sans == new_sans {
+                            settings.default_certificate_id = Some(id);
+                            if let Err(err) = self
+                                .registry()
+                                .write(RegistryWrite::update(
+                                    Id::singleton(),
+                                    &settings.into(),
+                                    &old,
+                                ))
+                                .await
+                            {
+                                trc::error!(
+                                    err.details(
+                                        "Failed to update default certificate after ACME renewal."
+                                    )
+                                    .caused_by(trc::location!())
+                                );
+                            }
+                        }
+                    }
+                }
+
                 // Reload registry
                 let change = RegistryChange::Insert(ObjectId::new(ObjectType::Certificate, id));
                 Box::pin(self.reload_registry(change)).await?;

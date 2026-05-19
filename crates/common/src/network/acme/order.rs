@@ -104,11 +104,18 @@ impl AcmeRequestBuilder {
         loop {
             match order.status {
                 OrderStatus::Pending => {
-                    let auth_futures = order
-                        .authorizations
-                        .iter()
-                        .map(|url| self.authorize(server, url, dns_parameters.as_ref()));
-                    try_join_all(auth_futures).await?;
+                    if matches!(self.challenge, ChallengeType::Dns01) {
+                        for url in &order.authorizations {
+                            self.authorize(server, url, dns_parameters.as_ref())
+                                .await?;
+                        }
+                    } else {
+                        let auth_futures = order
+                            .authorizations
+                            .iter()
+                            .map(|url| self.authorize(server, url, dns_parameters.as_ref()));
+                        try_join_all(auth_futures).await?;
+                    }
                     trc::event!(
                         Acme(AcmeEvent::AuthCompleted),
                         Url = self.directory.new_order.to_string(),
