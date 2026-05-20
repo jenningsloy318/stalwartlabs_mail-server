@@ -213,10 +213,14 @@ pub fn sanitize_email(email: &str) -> Option<String> {
 
     for ch in chars.by_ref() {
         match ch {
-            '.' | '+' | '-' | '_' => {
-                if !last_ch.is_alphanumeric() {
+            '.' => {
+                if last_ch == NIL_CHAR || last_ch == '.' {
                     return None;
                 }
+                result.push('.');
+            }
+            '!' | '#' | '$' | '%' | '&' | '\'' | '*' | '+' | '-' | '/' | '=' | '?' | '^' | '_'
+            | '`' | '{' | '|' | '}' | '~' => {
                 result.push(ch);
             }
             ' ' | '\x09'..='\x0d' => continue,
@@ -288,10 +292,14 @@ pub fn sanitize_email_local(local: &str) -> Option<String> {
 
     for ch in local.chars() {
         match ch {
-            '.' | '+' | '-' | '_' => {
-                if !last_ch.is_alphanumeric() {
+            '.' => {
+                if last_ch == NIL_CHAR || last_ch == '.' {
                     return None;
                 }
+                result.push('.');
+            }
+            '!' | '#' | '$' | '%' | '&' | '\'' | '*' | '+' | '-' | '/' | '=' | '?' | '^' | '_'
+            | '`' | '{' | '|' | '}' | '~' => {
                 result.push(ch);
             }
             ' ' | '\x09'..='\x0d' => continue,

@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.16.6] - 2026-05-XX
+## [0.16.6] - 2026-05-20
 
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
@@ -27,7 +27,7 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
 - ACME: 
   - Update `defaultCertificateId` when renewing a certificate that is currently set as default.
   - Perform `DNS-01` authorizations sequentially to avoid race conditions in some DNS providers.
-- Allow internal TLDs in e-mail addresses.
+- Allow internal TLDs and special characters in e-mail addresses.
 - Websocket: Perform case insensitive matching during upgrade.
 - LDAP: Synchronize accounts when expanding mailing list recipients.
 - Sieve: `replace` action adds an extra `From` header.
