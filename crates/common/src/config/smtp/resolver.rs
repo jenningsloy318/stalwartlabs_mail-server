@@ -144,7 +144,11 @@ impl Resolvers {
                     };
                     let mut connection = ConnectionConfig::new(protocol);
                     connection.port = port;
-                    resolver_config.add_name_server(NameServerConfig::new(ip, true, vec![connection]));
+                    resolver_config.add_name_server(NameServerConfig::new(
+                        ip,
+                        true,
+                        vec![connection],
+                    ));
                 }
 
                 opts.num_concurrent_reqs = resolver.concurrency as usize;

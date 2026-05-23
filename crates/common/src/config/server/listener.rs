@@ -121,9 +121,7 @@ impl Listeners {
             } {
                 Ok(socket) => socket,
                 Err(err)
-                    if is_eafnosupport(&err)
-                        && addr.is_ipv6()
-                        && addr.ip().is_unspecified() =>
+                    if is_eafnosupport(&err) && addr.is_ipv6() && addr.ip().is_unspecified() =>
                 {
                     let v4_addr =
                         StdSocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), addr.port());

@@ -18,7 +18,7 @@ use registry::{
         enums::MtaIpStrategy,
         structs::{
             Expression, MtaConnectionIpHost, MtaConnectionStrategy, MtaOutboundStrategy, MtaRoute,
-            MtaRouteMx, 
+            MtaRouteMx,
         },
     },
     types::{ipaddr::IpAddr, list::List},

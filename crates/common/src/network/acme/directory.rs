@@ -6,8 +6,6 @@
 
 // Adapted from rustls-acme (https://github.com/FlorianUekermann/rustls-acme), licensed under MIT/Apache-2.0.
 
-use std::time::Duration;
-
 use super::jose::{
     key_authorization, key_authorization_sha256, key_authorization_sha256_base64, sign,
 };
@@ -16,14 +14,15 @@ use crate::network::acme::{
     AcmeError, AcmeResult, Auth, AuthStatus, Challenge, ChallengeType, Directory, Identifier,
     Order, SerializedCert,
 };
+use aws_lc_rs::signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, EcdsaSigningAlgorithm};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use rcgen::{CustomExtension, KeyPair, PKCS_ECDSA_P256_SHA256};
 use registry::schema::structs::AcmeProvider;
 use reqwest::Method;
-use aws_lc_rs::signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, EcdsaSigningAlgorithm};
 use serde::de::DeserializeOwned;
 use serde_json::json;
+use std::time::Duration;
 use store::Serialize;
 use store::write::Archiver;
 
@@ -161,9 +160,8 @@ impl AcmeRequestBuilder {
         })?;
         let key_auth = key_authorization_sha256(&self.key_pair, challenge_token)?;
         params.custom_extensions = vec![CustomExtension::new_acme_identifier(key_auth.as_ref())];
-        let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).map_err(|err| {
-            AcmeError::Crypto(format!("Failed to generate key pair: {}", err))
-        })?;
+        let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)
+            .map_err(|err| AcmeError::Crypto(format!("Failed to generate key pair: {}", err)))?;
         let cert = params.self_signed(&key_pair).map_err(|err| {
             AcmeError::Crypto(format!(
                 "Failed to generate TLS-ALPN-01 certificate: {}",

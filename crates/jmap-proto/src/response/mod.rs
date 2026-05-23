@@ -535,7 +535,9 @@ impl From<ChangesResponse<CalendarEvent>> for ResponseMethod<'_> {
 
 impl From<ChangesResponse<CalendarEventNotification>> for ResponseMethod<'_> {
     fn from(response: ChangesResponse<CalendarEventNotification>) -> Self {
-        ResponseMethod::Changes(ChangesResponseMethod::CalendarEventNotification(Box::new(response)))
+        ResponseMethod::Changes(ChangesResponseMethod::CalendarEventNotification(Box::new(
+            response,
+        )))
     }
 }
 
@@ -607,6 +609,8 @@ impl From<CalendarEventNotificationGetResponse> for ResponseMethod<'_> {
 
 impl From<SetResponse<CalendarEventNotification>> for ResponseMethod<'_> {
     fn from(value: SetResponse<CalendarEventNotification>) -> Self {
-        ResponseMethod::Set(SetResponseMethod::CalendarEventNotification(Box::new(value)))
+        ResponseMethod::Set(SetResponseMethod::CalendarEventNotification(Box::new(
+            value,
+        )))
     }
 }

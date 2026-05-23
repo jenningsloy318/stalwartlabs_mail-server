@@ -515,7 +515,9 @@ impl RequestHandler for Server {
                     set_account_id_if_missing(&mut req.account_id, access_token);
                     access_token.assert_has_access(req.account_id, Collection::FileNode)?;
 
-                    self.file_node_set(*req, access_token, session).await?.into()
+                    self.file_node_set(*req, access_token, session)
+                        .await?
+                        .into()
                 }
                 SetRequestMethod::ShareNotification(mut req) => {
                     set_account_id_if_missing(&mut req.account_id, access_token);

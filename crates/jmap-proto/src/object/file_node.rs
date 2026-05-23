@@ -399,7 +399,6 @@ impl<'x> DeserializeArguments<'x> for FileNodeQueryArguments {
     }
 }
 
-
 impl FromStr for FileNodeProperty {
     type Err = ();
 

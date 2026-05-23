@@ -87,7 +87,11 @@ pub async fn test(test: &TestServer) {
         .await
         .object_ids()
         .collect();
-    assert!(asc_order.len() > 100, "expected >100 metrics, got {}", asc_order.len());
+    assert!(
+        asc_order.len() > 100,
+        "expected >100 metrics, got {}",
+        asc_order.len()
+    );
     let desc_order: Vec<Id> = asc_order.iter().rev().copied().collect();
     let total = asc_order.len();
     let limit = 25usize;

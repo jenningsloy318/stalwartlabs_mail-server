@@ -158,7 +158,12 @@ async fn pagination_test(test: &mut TestServer) {
         .await
         .object_ids()
         .collect();
-    assert_eq!(asc_order.len(), 12, "expected 12 tasks, got {}", asc_order.len());
+    assert_eq!(
+        asc_order.len(),
+        12,
+        "expected 12 tasks, got {}",
+        asc_order.len()
+    );
 
     let desc_order: Vec<Id> = asc_order.iter().rev().copied().collect();
 

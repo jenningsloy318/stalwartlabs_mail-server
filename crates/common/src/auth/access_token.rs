@@ -8,7 +8,7 @@ use super::AccessToken;
 use crate::{
     Server,
     auth::{
-        AccessScope, AccessTo, AccessTokenInner, AccountTenantIds, RECOVERY_ADMIN_ID, Permissions,
+        AccessScope, AccessTo, AccessTokenInner, AccountTenantIds, Permissions, RECOVERY_ADMIN_ID,
         permissions::{BuildPermissions, PermissionsListBuilder},
     },
     network::limiter::{ConcurrencyLimiter, LimiterResult},
@@ -695,6 +695,14 @@ impl AccessToken {
             .map_or(LimiterResult::Disabled, |limiter| limiter.is_allowed())
     }
 
+    pub fn concurrent_http_requests(&self) -> u64 {
+        self.inner
+            .concurrent_http_requests
+            .as_ref()
+            .map(|limiter| limiter.max_concurrent())
+            .unwrap_or(0)
+    }
+
     pub fn is_imap_request_allowed(&self) -> LimiterResult {
         self.inner
             .concurrent_imap_requests
@@ -707,6 +715,14 @@ impl AccessToken {
             .concurrent_uploads
             .as_ref()
             .map_or(LimiterResult::Disabled, |limiter| limiter.is_allowed())
+    }
+
+    pub fn concurrent_uploads(&self) -> u64 {
+        self.inner
+            .concurrent_uploads
+            .as_ref()
+            .map(|limiter| limiter.max_concurrent())
+            .unwrap_or(0)
     }
 
     pub fn account_tenant_ids(&self) -> AccountTenantIds {

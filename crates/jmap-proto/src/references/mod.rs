@@ -85,6 +85,8 @@ fn topological_sort<T>(
 
 #[cfg(test)]
 mod tests {
+    use crate::references::Graph;
+    use crate::references::eval::EvalObjectReferences;
     use crate::{
         method::{changes::ChangesResponse, get::GetResponse, query::QueryResponse},
         object::{
@@ -98,8 +100,6 @@ mod tests {
         },
         response::{ChangesResponseMethod, GetResponseMethod, Response, ResponseMethod},
     };
-    use crate::references::Graph;
-    use crate::references::eval::EvalObjectReferences;
     use jmap_tools::{Key, Map, Value};
     use std::collections::HashMap;
     use types::id::Id;
@@ -311,8 +311,8 @@ mod tests {
                     response.method_responses.push(Call {
                         id: call.id,
                         name: call.name,
-                        method: ResponseMethod::Changes(ChangesResponseMethod::Mailbox(
-                            Box::new(ChangesResponse {
+                        method: ResponseMethod::Changes(ChangesResponseMethod::Mailbox(Box::new(
+                            ChangesResponse {
                                 account_id: Id::new(1),
                                 old_state: Default::default(),
                                 new_state: Default::default(),
@@ -324,8 +324,8 @@ mod tests {
                                     MailboxProperty::Name.into(),
                                     MailboxProperty::ParentId.into(),
                                 ]),
-                            }),
-                        )),
+                            },
+                        ))),
                     });
                 }
                 1 => {
@@ -767,14 +767,13 @@ mod tests {
         created_ids.insert("b".to_string(), Id::new(2).into());
         let response = Response::new(0, created_ids, 0);
 
-        let mut value: Value<'_, MailboxProperty, MailboxValue> =
-            Value::Object(Map::from(vec![(
-                Key::Property(MailboxProperty::ParentId),
-                Value::Array(vec![
-                    Value::Element(MailboxValue::IdReference("a".into())),
-                    Value::Element(MailboxValue::IdReference("b".into())),
-                ]),
-            )]));
+        let mut value: Value<'_, MailboxProperty, MailboxValue> = Value::Object(Map::from(vec![(
+            Key::Property(MailboxProperty::ParentId),
+            Value::Array(vec![
+                Value::Element(MailboxValue::IdReference("a".into())),
+                Value::Element(MailboxValue::IdReference("b".into())),
+            ]),
+        )]));
 
         value
             .eval_object_references(&response, &mut Graph::None, 0, 5, true)
@@ -798,14 +797,13 @@ mod tests {
         created_ids.insert("a".to_string(), Id::new(7).into());
         let response = Response::new(0, created_ids, 0);
 
-        let mut value: Value<'_, MailboxProperty, MailboxValue> =
-            Value::Object(Map::from(vec![(
+        let mut value: Value<'_, MailboxProperty, MailboxValue> = Value::Object(Map::from(vec![(
+            Key::Property(MailboxProperty::ParentId),
+            Value::Array(vec![Value::Object(Map::from(vec![(
                 Key::Property(MailboxProperty::ParentId),
-                Value::Array(vec![Value::Object(Map::from(vec![(
-                    Key::Property(MailboxProperty::ParentId),
-                    Value::Element(MailboxValue::IdReference("a".into())),
-                )]))]),
-            )]));
+                Value::Element(MailboxValue::IdReference("a".into())),
+            )]))]),
+        )]));
 
         value
             .eval_object_references(&response, &mut Graph::None, 0, 5, true)
@@ -831,14 +829,13 @@ mod tests {
         let mut graph_map: HashMap<String, Vec<String>> = HashMap::new();
         let child_id = "outer".to_string();
 
-        let mut value: Value<'_, MailboxProperty, MailboxValue> =
+        let mut value: Value<'_, MailboxProperty, MailboxValue> = Value::Object(Map::from(vec![(
+            Key::Property(MailboxProperty::ParentId),
             Value::Object(Map::from(vec![(
                 Key::Property(MailboxProperty::ParentId),
-                Value::Object(Map::from(vec![(
-                    Key::Property(MailboxProperty::ParentId),
-                    Value::Element(MailboxValue::IdReference("inner".into())),
-                )])),
-            )]));
+                Value::Element(MailboxValue::IdReference("inner".into())),
+            )])),
+        )]));
 
         {
             let mut graph = Graph::Some {
@@ -857,22 +854,19 @@ mod tests {
     fn eval_unresolved_nested_ref_errors_without_graph() {
         let response = Response::new(0, HashMap::new(), 0);
 
-        let mut value: Value<'_, MailboxProperty, MailboxValue> =
+        let mut value: Value<'_, MailboxProperty, MailboxValue> = Value::Object(Map::from(vec![(
+            Key::Property(MailboxProperty::ParentId),
             Value::Object(Map::from(vec![(
                 Key::Property(MailboxProperty::ParentId),
-                Value::Object(Map::from(vec![(
-                    Key::Property(MailboxProperty::ParentId),
-                    Value::Element(MailboxValue::IdReference("missing".into())),
-                )])),
-            )]));
+                Value::Element(MailboxValue::IdReference("missing".into())),
+            )])),
+        )]));
 
         let err = value
             .eval_object_references(&response, &mut Graph::None, 0, 5, true)
             .unwrap_err();
         assert!(
-            err.matches(trc::EventType::Jmap(
-                trc::JmapEvent::InvalidResultReference
-            )),
+            err.matches(trc::EventType::Jmap(trc::JmapEvent::InvalidResultReference)),
             "{:?}",
             err
         );
@@ -884,17 +878,16 @@ mod tests {
         created_ids.insert("inner".to_string(), Id::new(99).into());
         let response = Response::new(0, created_ids, 0);
 
-        let mut value: Value<'_, MailboxProperty, MailboxValue> =
+        let mut value: Value<'_, MailboxProperty, MailboxValue> = Value::Object(Map::from(vec![(
+            Key::Property(MailboxProperty::ParentId),
             Value::Object(Map::from(vec![(
                 Key::Property(MailboxProperty::ParentId),
                 Value::Object(Map::from(vec![(
                     Key::Property(MailboxProperty::ParentId),
-                    Value::Object(Map::from(vec![(
-                        Key::Property(MailboxProperty::ParentId),
-                        Value::Element(MailboxValue::IdReference("inner".into())),
-                    )])),
+                    Value::Element(MailboxValue::IdReference("inner".into())),
                 )])),
-            )]));
+            )])),
+        )]));
 
         value
             .eval_object_references(&response, &mut Graph::None, 0, 2, true)
@@ -925,14 +918,13 @@ mod tests {
         created_ids.insert("inner".to_string(), Id::new(99).into());
         let response = Response::new(0, created_ids, 0);
 
-        let mut value: Value<'_, MailboxProperty, MailboxValue> =
+        let mut value: Value<'_, MailboxProperty, MailboxValue> = Value::Object(Map::from(vec![(
+            Key::Property(MailboxProperty::ParentId),
             Value::Object(Map::from(vec![(
                 Key::Property(MailboxProperty::ParentId),
-                Value::Object(Map::from(vec![(
-                    Key::Property(MailboxProperty::ParentId),
-                    Value::Element(MailboxValue::IdReference("inner".into())),
-                )])),
-            )]));
+                Value::Element(MailboxValue::IdReference("inner".into())),
+            )])),
+        )]));
 
         value
             .eval_object_references(&response, &mut Graph::None, 0, 2, true)

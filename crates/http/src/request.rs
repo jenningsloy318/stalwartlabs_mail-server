@@ -311,7 +311,7 @@ impl ParseHttp for Server {
                         .await?;
                     return Ok(Resource::new(
                         "application/json",
-                        self.get_pacc_for_fomain(
+                        self.get_pacc_for_domain(
                             req.headers()
                                 .get(header::HOST)
                                 .and_then(|h| h.to_str().ok())

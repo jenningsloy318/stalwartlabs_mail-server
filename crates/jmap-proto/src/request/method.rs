@@ -218,7 +218,7 @@ impl MethodName {
     }
 
     pub fn parse(s: &str) -> Option<Self> {
-        hashify::tiny_map!(s.as_bytes(), 
+        hashify::tiny_map!(s.as_bytes(),
             "PushSubscription/get" => (MethodObject::PushSubscription, MethodFunction::Get),
             "PushSubscription/set" => (MethodObject::PushSubscription, MethodFunction::Set),
 
@@ -331,7 +331,7 @@ impl MethodName {
         ).or_else(|| {
             let (obj, fnc) = s.strip_prefix("x:")?.split_once('/')?;
             let obj = ObjectType::parse(obj)?;
-            let fnc = hashify::tiny_map!(fnc.as_bytes(), 
+            let fnc = hashify::tiny_map!(fnc.as_bytes(),
                 "get" => MethodFunction::Get,
                 "set" => MethodFunction::Set,
                 "query" => MethodFunction::Query,

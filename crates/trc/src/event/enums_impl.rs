@@ -6,7 +6,7 @@
 
 // This file is auto-generated. Do not edit directly.
 
-use crate::{event::enums::*, Level};
+use crate::{Level, event::enums::*};
 use std::borrow::Cow;
 
 impl EventType {
@@ -3737,7 +3737,9 @@ impl EventType {
             EventType::Auth(AuthEvent::Success) => "Authentication error",
             EventType::Auth(AuthEvent::Failed) => "Authentication failed",
             EventType::Auth(AuthEvent::TokenExpired) => "Authentication error",
-            EventType::Auth(AuthEvent::MfaRequired) => "This account requires multi-factor authentication. Alternatively, you can use an app password if your account has one.",
+            EventType::Auth(AuthEvent::MfaRequired) => {
+                "This account requires multi-factor authentication. Alternatively, you can use an app password if your account has one."
+            }
             EventType::Auth(AuthEvent::TooManyAttempts) => "Too many authentication attempts",
             EventType::Auth(AuthEvent::ClientRegistration) => "Authentication error",
             EventType::Auth(AuthEvent::Error) => "Authentication error",
@@ -3790,7 +3792,9 @@ impl EventType {
             EventType::Jmap(JmapEvent::InvalidResultReference) => "Invalid result reference",
             EventType::Jmap(JmapEvent::Forbidden) => "Forbidden",
             EventType::Jmap(JmapEvent::AccountNotFound) => "Account not found",
-            EventType::Jmap(JmapEvent::AccountNotSupportedByMethod) => "Account not supported by method",
+            EventType::Jmap(JmapEvent::AccountNotSupportedByMethod) => {
+                "Account not supported by method"
+            }
             EventType::Jmap(JmapEvent::AccountReadOnly) => "Account read-only",
             EventType::Jmap(JmapEvent::NotFound) => "Not found",
             EventType::Jmap(JmapEvent::CannotCalculateChanges) => "Cannot calculate changes",
@@ -3956,7 +3960,9 @@ impl EventType {
             EventType::Smtp(SmtpEvent::UnsupportedParameter) => "SMTP error",
             EventType::Smtp(SmtpEvent::SyntaxError) => "SMTP error",
             EventType::Smtp(SmtpEvent::RequestTooLarge) => "SMTP error",
-            EventType::Store(StoreEvent::AssertValueFailed) => "Another process has modified the value",
+            EventType::Store(StoreEvent::AssertValueFailed) => {
+                "Another process has modified the value"
+            }
             EventType::Store(StoreEvent::FoundationdbError) => "FoundationDB error",
             EventType::Store(StoreEvent::MysqlError) => "MySQL error",
             EventType::Store(StoreEvent::PostgresqlError) => "PostgreSQL error",

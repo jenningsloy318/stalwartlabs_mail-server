@@ -161,7 +161,9 @@ impl QueryChanges for Server {
                 }
 
                 up_to_id = request.up_to_id;
-                results = self.file_node_query((*request).into(), access_token).await?;
+                results = self
+                    .file_node_query((*request).into(), access_token)
+                    .await?;
             }
             QueryChangesRequestMethod::CalendarEvent(mut request) => {
                 // Query changes

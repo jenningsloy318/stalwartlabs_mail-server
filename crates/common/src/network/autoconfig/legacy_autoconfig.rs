@@ -21,12 +21,12 @@ impl Server {
             .unwrap_or_default()
             .to_lowercase();
         let default_host = &self.core.network.server_name;
-        let (emailaddress, domain) =
-            if let Some((_, domain)) = emailaddress_param.rsplit_once('@') {
-                (emailaddress_param.as_str(), domain)
-            } else {
-                ("%EMAILADDRESS%", default_host.as_str())
-            };
+        let (emailaddress, domain) = if let Some((_, domain)) = emailaddress_param.rsplit_once('@')
+        {
+            (emailaddress_param.as_str(), domain)
+        } else {
+            ("%EMAILADDRESS%", default_host.as_str())
+        };
 
         // Build XML response
         let mut config = String::with_capacity(1024);

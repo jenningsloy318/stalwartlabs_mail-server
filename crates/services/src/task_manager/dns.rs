@@ -6,11 +6,11 @@
 
 use crate::task_manager::TaskResult;
 use common::Server;
+use dns_update::{DnsRecord, DnsRecordType};
 use registry::schema::structs::{
     DnsManagement, Domain, Task, TaskDnsManagement, TaskDomainManagement, TaskStatus,
 };
-use std::fmt::Write;
-use store::ahash::AHashSet;
+use std::{collections::HashMap, fmt::Write};
 
 pub(crate) trait DnsManagementTask: Sync + Send {
     fn dns_management(&self, task: &TaskDnsManagement) -> impl Future<Output = TaskResult> + Send;
@@ -60,20 +60,19 @@ async fn dns_management(server: &Server, task: &TaskDnsManagement) -> trc::Resul
         .build_dns_records(task.domain_id, &domain, task.update_records.as_slice())
         .await?;
 
-    // Delete any previous records
-    let delete_records = records
-        .iter()
-        .map(|record| (&record.name, record.record.as_type()))
-        .collect::<AHashSet<_>>();
-    for (name, record_type) in delete_records {
-        let _ = dns_updater.delete(origin, name, record_type).await;
+    // Group records by (name, type) so each RRSet is published in one call.
+    let mut by_owner: HashMap<(String, DnsRecordType), Vec<DnsRecord>> = HashMap::new();
+    for record in records {
+        by_owner
+            .entry((record.name, record.record.as_type()))
+            .or_default()
+            .push(record.record);
     }
 
-    // Add new records
     let mut errors = String::new();
-    for record in records {
+    for ((name, record_type), recs) in by_owner {
         if let Err(err) = dns_updater
-            .create(origin, &record.name, record.record, false, false)
+            .set_rrset(origin, &name, record_type, recs)
             .await
         {
             if !errors.is_empty() {
@@ -81,8 +80,10 @@ async fn dns_management(server: &Server, task: &TaskDnsManagement) -> trc::Resul
             }
             let _ = write!(
                 &mut errors,
-                "Failed to create DNS record for {}: {}",
-                record.name, err
+                "Failed to set DNS RRSet for {}/{}: {}",
+                name,
+                record_type.as_str(),
+                err
             );
         }
     }

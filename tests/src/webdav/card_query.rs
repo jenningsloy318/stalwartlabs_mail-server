@@ -15,7 +15,10 @@ pub async fn test(test: &TestServer) {
     let client = test.account("john@example.com").webdav_client();
 
     // Create test data
-    let default_path = format!("{}/john%40example.com/default/", DavResourceName::Card.base_path());
+    let default_path = format!(
+        "{}/john%40example.com/default/",
+        DavResourceName::Card.base_path()
+    );
     let mut hrefs = Vec::with_capacity(3);
     for (i, vcard) in [VCARD1, VCARD2, VCARD3].iter().enumerate() {
         let href = format!("{default_path}contact-{i}.vcf",);

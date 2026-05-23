@@ -71,7 +71,11 @@ impl FileNodeCopy for Server {
         }
 
         let cache = self
-            .fetch_dav_resources(access_token.account_id(), account_id, SyncCollection::FileNode)
+            .fetch_dav_resources(
+                access_token.account_id(),
+                account_id,
+                SyncCollection::FileNode,
+            )
             .await
             .caused_by(trc::location!())?;
         let old_state = cache.assert_state(false, &request.if_in_state)?;
@@ -167,7 +171,8 @@ impl FileNodeCopy for Server {
             // ACLs are account-scoped; do not carry the source account's grants over.
             file_node.acls.clear();
 
-            let has_acl_changes = match update_file_node(create, &mut file_node, true, &NoResolver) {
+            let has_acl_changes = match update_file_node(create, &mut file_node, true, &NoResolver)
+            {
                 Ok(result) => {
                     if let Some(blob_id) = result.blob_id {
                         let file_details = file_node.file.get_or_insert_default();

@@ -48,6 +48,7 @@ impl BlobCopy for Server {
                         .blob_has_quota(account_id, 1)
                         .await
                         .caused_by(trc::location!())?
+                        .allowed
                 {
                     response.not_copied.append(
                         blob_id,

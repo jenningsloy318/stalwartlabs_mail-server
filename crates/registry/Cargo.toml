@@ -1,6 +1,6 @@
 [package]
 name = "registry"
-version = "0.15.4"
+version = "0.16.7"
 edition = "2024"
 
 [dependencies]
