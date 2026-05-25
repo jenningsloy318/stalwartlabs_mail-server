@@ -81,7 +81,7 @@ pub(crate) async fn queued_message_set(
         }
 
         // Process patches
-        let prev_event = archived_message.inner.next_delivery_event(None);
+        let prev_event = archived_message.inner.next_event(None);
         let mut message = map_message(archived_message.inner);
         message.next_retry = None;
         for (key, value) in value.into_expanded_object() {

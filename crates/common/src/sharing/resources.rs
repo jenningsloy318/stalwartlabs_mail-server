@@ -47,6 +47,12 @@ impl DavResources {
         if !shared_containers.is_empty() {
             let mut document_ids = RoaringBitmap::new();
 
+            for resource in &self.resources {
+                if !resource.is_container() && shared_containers.contains(resource.document_id) {
+                    document_ids.insert(resource.document_id);
+                }
+            }
+
             for path in &self.paths {
                 if let Some(parent_id) = path.parent_id
                     && shared_containers.contains(parent_id)

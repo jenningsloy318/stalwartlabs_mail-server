@@ -140,7 +140,7 @@ impl<T: SessionStream> Session<T> {
             }
 
             // Milter filtering
-            if let Err(message) = self.run_milters(Stage::Rcpt, None).await {
+            if let Err(message) = self.run_milters(Stage::Rcpt, None, None).await {
                 self.data.rcpt_to.pop();
                 return self.write(message.message.as_bytes()).await;
             }

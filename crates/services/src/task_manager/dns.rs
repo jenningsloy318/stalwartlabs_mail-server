@@ -10,7 +10,8 @@ use dns_update::{DnsRecord, DnsRecordType};
 use registry::schema::structs::{
     DnsManagement, Domain, Task, TaskDnsManagement, TaskDomainManagement, TaskStatus,
 };
-use std::{collections::HashMap, fmt::Write};
+use std::fmt::Write;
+use store::ahash::AHashMap;
 
 pub(crate) trait DnsManagementTask: Sync + Send {
     fn dns_management(&self, task: &TaskDnsManagement) -> impl Future<Output = TaskResult> + Send;
@@ -61,7 +62,7 @@ async fn dns_management(server: &Server, task: &TaskDnsManagement) -> trc::Resul
         .await?;
 
     // Group records by (name, type) so each RRSet is published in one call.
-    let mut by_owner: HashMap<(String, DnsRecordType), Vec<DnsRecord>> = HashMap::new();
+    let mut by_owner: AHashMap<(String, DnsRecordType), Vec<DnsRecord>> = AHashMap::new();
     for record in records {
         by_owner
             .entry((record.name, record.record.as_type()))

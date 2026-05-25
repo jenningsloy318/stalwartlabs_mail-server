@@ -456,6 +456,7 @@ impl<T: SessionStream> Session<T> {
                     trc::event!(
                         Spam(SpamEvent::Classify),
                         SpanId = self.data.session_id,
+                        QueueId = message_id,
                         Result = "discard",
                         Reason = "Message discarded due to excessive spam score.",
                     );
@@ -467,6 +468,7 @@ impl<T: SessionStream> Session<T> {
                     trc::event!(
                         Spam(SpamEvent::Classify),
                         SpanId = self.data.session_id,
+                        QueueId = message_id,
                         Result = "reject",
                         Reason = "Message rejected due to excessive spam score.",
                     );
@@ -481,7 +483,10 @@ impl<T: SessionStream> Session<T> {
 
         // Run Milter filters
         let mut modifications = Vec::new();
-        match self.run_milters(Stage::Data, (&auth_message).into()).await {
+        match self
+            .run_milters(Stage::Data, (&auth_message).into(), message_id.into())
+            .await
+        {
             Ok(modifications_) => {
                 if !modifications_.is_empty() {
                     modifications = modifications_;

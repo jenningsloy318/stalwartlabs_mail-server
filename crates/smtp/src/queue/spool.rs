@@ -14,7 +14,7 @@ use crate::queue::{
     FROM_UNAUTHENTICATED_DMARC, MessageWrapper,
 };
 use ahash::AHashSet;
-use common::config::smtp::queue::QueueName;
+use common::config::smtp::queue::{ArchivedQueueExpiry, QueueName};
 use common::ipc::QueueEvent;
 use common::{KV_LOCK_QUEUE_MESSAGE, Server};
 use registry::schema::prelude::{ObjectType, Property};
@@ -801,6 +801,35 @@ impl ArchivedMessage {
         }
 
         next_delivery
+    }
+
+    pub fn next_event(&self, queue: Option<QueueName>) -> Option<u64> {
+        let created = self.created.to_native();
+        let mut next_event = None;
+
+        for rcpt in self.recipients.iter().filter(|d| {
+            matches!(
+                d.status,
+                ArchivedStatus::Scheduled | ArchivedStatus::TemporaryFailure(_)
+            ) && queue.is_none_or(|q| d.queue == q)
+        }) {
+            let mut earlier_event =
+                std::cmp::min(rcpt.retry.due.to_native(), rcpt.notify.due.to_native());
+
+            if let ArchivedQueueExpiry::Ttl(ttl) = &rcpt.expires {
+                earlier_event = std::cmp::min(earlier_event, created + ttl.to_native());
+            }
+
+            if let Some(next_event) = &mut next_event {
+                if earlier_event < *next_event {
+                    *next_event = earlier_event;
+                }
+            } else {
+                next_event = Some(earlier_event);
+            }
+        }
+
+        next_event
     }
 
     pub fn next_notify_event(&self, queue: Option<QueueName>) -> Option<u64> {

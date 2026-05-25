@@ -704,7 +704,6 @@ impl DnsUpdater {
             }),
             DnsServer::Inwx(server) => {
                 let password = server.password.secret().await?.into_owned();
-                let shared_secret = server.shared_secret.secret().await?.map(|c| c.into_owned());
                 Ok(DnsUpdater {
                     polling_interval: server.polling_interval.into_inner(),
                     propagation_timeout: server.propagation_timeout.into_inner(),
@@ -714,7 +713,6 @@ impl DnsUpdater {
                     updater: dns_update::DnsUpdater::new_inwx(
                         server.username,
                         password,
-                        shared_secret,
                         server.sandbox,
                         server.timeout.into_inner().into(),
                     )
@@ -1014,6 +1012,7 @@ impl DnsUpdater {
                 updater: dns_update::DnsUpdater::new_transip(
                     server.username.as_str(),
                     server.private_key_pem.secret().await?,
+                    true,
                     server.timeout.into_inner().into(),
                 )
                 .map_err(|err| format!("Failed to build DNS updater: {}", err))?,

@@ -187,7 +187,7 @@ impl<T: SessionStream> Session<T> {
         }
 
         // Milter filtering
-        if let Err(message) = self.run_milters(Stage::Mail, None).await {
+        if let Err(message) = self.run_milters(Stage::Mail, None, None).await {
             self.data.mail_from = None;
             return self.write(message.message.as_bytes()).await;
         }
