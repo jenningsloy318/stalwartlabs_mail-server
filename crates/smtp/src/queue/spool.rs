@@ -16,6 +16,7 @@ use crate::queue::{
 use ahash::AHashSet;
 use common::config::smtp::queue::{ArchivedQueueExpiry, QueueName};
 use common::ipc::QueueEvent;
+use common::network::RcptResolution;
 use common::{KV_LOCK_QUEUE_MESSAGE, Server};
 use registry::schema::prelude::{ObjectType, Property};
 use registry::schema::structs::SpamTrainingSample;
@@ -568,9 +569,37 @@ impl MessageWrapper {
         true
     }
 
-    pub async fn add_recipient(&mut self, rcpt: impl AsRef<str>, server: &Server) {
-        // Resolve queue
-        self.message.recipients.push(Recipient::new(rcpt));
+    pub async fn expand_and_add_recipient(&mut self, rcpt: impl AsRef<str>, server: &Server) {
+        let rcpt = rcpt.as_ref();
+        match server
+            .rcpt_resolve(&rcpt.to_lowercase(), self.span_id)
+            .await
+        {
+            Ok(RcptResolution::Rewrite(rewritten)) => {
+                self.add_expanded_recipient(&rewritten, server).await;
+            }
+            Ok(RcptResolution::Expand(addrs)) => {
+                for addr in addrs.as_ref() {
+                    self.add_expanded_recipient(addr, server).await;
+                }
+            }
+            Ok(_) => {
+                self.add_expanded_recipient(rcpt, server).await;
+            }
+            Err(err) => {
+                trc::error!(
+                    err.span_id(self.span_id)
+                        .caused_by(trc::location!())
+                        .details("Failed to resolve recipient.")
+                        .ctx(trc::Key::To, rcpt.to_string())
+                );
+                self.add_expanded_recipient(rcpt, server).await;
+            }
+        }
+    }
+
+    pub async fn add_expanded_recipient(&mut self, rcpt: impl AsRef<str>, server: &Server) {
+        self.message.recipients.push(Recipient::new(rcpt.as_ref()));
         let queue = server.get_queue_or_default(
             &server
                 .eval_if::<String, _>(

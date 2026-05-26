@@ -39,7 +39,7 @@ impl SendDsn for Server {
             if let Some(dsn) = message.build_dsn(self).await {
                 let mut dsn_message = self.new_message("", message.span_id);
                 dsn_message
-                    .add_recipient(message.message.return_path.as_ref(), self)
+                    .expand_and_add_recipient(message.message.return_path.as_ref(), self)
                     .await;
 
                 // Sign message

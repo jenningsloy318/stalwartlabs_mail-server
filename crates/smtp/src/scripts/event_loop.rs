@@ -161,11 +161,11 @@ impl RunScript for Server {
                         let mut message = self.new_message(params.return_path.as_str(), session_id);
                         match recipient {
                             Recipient::Address(rcpt) => {
-                                message.add_recipient(rcpt, self).await;
+                                message.expand_and_add_recipient(rcpt, self).await;
                             }
                             Recipient::Group(rcpt_list) => {
                                 for rcpt in rcpt_list {
-                                    message.add_recipient(rcpt, self).await;
+                                    message.expand_and_add_recipient(rcpt, self).await;
                                 }
                             }
                             Recipient::List(list) => {

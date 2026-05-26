@@ -318,7 +318,7 @@ pub(crate) async fn task_set(
         // SPDX-SnippetEnd
 
         #[cfg(not(feature = "enterprise"))]
-        {
+        if let Task::DestroyAccount(_) = task {
             set.response.not_destroyed.append(
                 id,
                 SetError::forbidden().with_description(
