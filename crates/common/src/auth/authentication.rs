@@ -516,7 +516,8 @@ impl Server {
                 .domain(domain_name)
                 .await
                 .caused_by(trc::location!())?
-                .and_then(|domain| self.core.storage.directories.get(&domain.id))
+                .and_then(|domain| domain.id_directory)
+                .and_then(|id_directory| self.core.storage.directories.get(&id_directory))
                 .or_else(|| self.get_default_directory()));
         }
         // SPDX-SnippetEnd

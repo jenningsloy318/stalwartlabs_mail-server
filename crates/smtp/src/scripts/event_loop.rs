@@ -63,6 +63,9 @@ impl RunScript for Server {
             .with_envelope_list(params.envelope)
             .with_user_address(&params.from_addr)
             .with_user_full_name(&params.from_name);
+        if let Some(spam_status) = params.spam_status {
+            instance.set_spam_status(spam_status);
+        }
         let mut input = Input::script("__script", script);
         let mut messages: Vec<Vec<u8>> = Vec::new();
         let session_id = params.session_id;
