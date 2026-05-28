@@ -1185,6 +1185,15 @@ impl DnsUpdater {
         Ok(())
     }
 
+    pub async fn list_rrset(
+        &self,
+        origin: &str,
+        name: &str,
+        record_type: DnsRecordType,
+    ) -> dns_update::Result<Vec<DnsRecord>> {
+        self.updater.list_rrset(name, record_type, origin).await
+    }
+
     pub async fn remove_from_rrset(
         &self,
         origin: &str,

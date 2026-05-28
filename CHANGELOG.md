@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.16.7] - 2026-05-XX
+## [0.16.7] - 2026-05-28
 
 If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If you are upgrading from v0.15.x and below, please read the [upgrading documentation](https://github.com/stalwartlabs/stalwart/blob/main/UPGRADING/v0_16.md) for more information on how to upgrade from previous versions.
 
@@ -20,6 +20,8 @@ If you are upgrading from v0.16.x, replace the binary (or run `docker pull`). If
 - Sharing: Includes resource that themselves carry a direct ACL grant and are leaves.
 - Tasks cannot be deleted in OSS builds.
 - Directory: Per-domain external directory resolution fails.
+- DNS updater: Keep external `TXT` records when updating RRSet.
+- HTTP: Reject requests from blocked IPs when `Keep-Alive` is enabled.
 
 ## [0.16.6] - 2026-05-20
 

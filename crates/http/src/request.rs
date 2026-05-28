@@ -699,22 +699,6 @@ async fn handle_session<T: SessionStream>(inner: Arc<Inner>, session: SessionDat
                                 .and_then(|h| h.parse::<IpAddr>().ok())
                         })
                     {
-                        // Check if the forwarded IP has been blocked
-                        if server.is_ip_blocked(forwarded_for) {
-                            trc::event!(
-                                Security(trc::SecurityEvent::IpBlocked),
-                                ListenerId = instance.id.clone(),
-                                RemoteIp = forwarded_for,
-                                SpanId = session.session_id,
-                            );
-
-                            return Ok::<_, hyper::Error>(
-                                JsonProblemResponse(StatusCode::FORBIDDEN)
-                                    .into_http_response()
-                                    .build(),
-                            );
-                        }
-
                         trc::event!(
                             Http(trc::HttpEvent::RequestUrl),
                             SpanId = session.session_id,
@@ -730,6 +714,22 @@ async fn handle_session<T: SessionStream>(inner: Arc<Inner>, session: SessionDat
                         );
                         session.remote_ip
                     };
+
+                    // Check if the remote IP has been blocked
+                    if server.is_ip_blocked(remote_ip) {
+                        trc::event!(
+                            Security(trc::SecurityEvent::IpBlocked),
+                            ListenerId = instance.id.clone(),
+                            RemoteIp = remote_ip,
+                            SpanId = session.session_id,
+                        );
+
+                        return Ok::<_, hyper::Error>(
+                            JsonProblemResponse(StatusCode::FORBIDDEN)
+                                .into_http_response()
+                                .build(),
+                        );
+                    }
 
                     // Parse HTTP request
                     let response = match Box::pin(server.parse_http_request(
